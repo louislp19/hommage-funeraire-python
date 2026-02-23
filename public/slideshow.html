@@ -18,35 +18,42 @@ img.active { opacity:1; }
 const slideshow = document.getElementById('slideshow');
 const list_key = 'GLOBAL_MEMORIAL_IMAGES';
 
-// Charger images depuis blob JSON
+// Fetch JSON list
 fetch(`https://blob.vercel-storage.com/${list_key}?t=${Date.now()}`)
-.then(res => res.json())
-.then(data => {
-    const images = Array.isArray(data) ? data : [];
+.then(res => res.text())  // text safe
+.then(raw => {
+    let images = [];
+    try {
+        const data = JSON.parse(raw);
+        images = Array.isArray(data) ? data : [];
+    } catch(e) {
+        console.error('JSON parse fail:', e);
+    }
+    
     if(images.length === 0) {
-        slideshow.innerHTML = '<p style="color:white;text-align:center;line-height:100vh;font-size:32px;">Aucune photo uploadée</p>';
+        slideshow.innerHTML = '<p style="color:white;font-size:32px;line-height:100vh;text-align:center;">Aucune photo pour le mémorial</p>';
         return;
     }
     
-    images.forEach(url => {
+    // Load images
+    images.forEach((url, idx) => {
         const img = document.createElement('img');
-        img.src = url;
+        img.src = url + '?alt=media&t=' + Date.now();  // Cache bust + media
+        img.onerror = () => console.log('Image fail:', url);
         slideshow.appendChild(img);
     });
     
     let index = 0;
-    const total = images.length;
     function next() {
-        Array.from(slideshow.children).forEach((img, i) => {
-            img.classList.toggle('active', i === index);
-        });
-        index = (index + 1) % total;
+        Array.from(slideshow.children).forEach((img, i) => img.classList.toggle('active', i === index));
+        index = (index + 1) % images.length;
     }
-    setInterval(next, 4000);  // 4s par image
+    setInterval(next, 4000);
     next();
 })
 .catch(e => {
-    slideshow.innerHTML = '<p style="color:red;text-align:center;line-height:100vh;">Erreur chargement</p>';
+    slideshow.innerHTML = '<p style="color:red;font-size:32px;line-height:100vh;text-align:center;">Erreur chargement photos</p>';
+    console.error(e);
 });
 </script>
 </body>

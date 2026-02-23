@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler
 from cgi import FieldStorage
 import vercel_blob
 import uuid
+import time  # timestamp extra
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -14,10 +15,9 @@ class handler(BaseHTTPRequestHandler):
                 environ={'REQUEST_METHOD':'POST'}
             )
             
-            # Clé JSON accumulateur
             list_key = "GLOBAL_MEMORIAL_IMAGES"
             
-            # Load existant
+            # Load
             try:
                 existing_data = vercel_blob.get(list_key)
                 urls = json.loads(existing_data)
@@ -26,33 +26,33 @@ class handler(BaseHTTPRequestHandler):
             
             new_count = 0
             
-            # Parcourir TOUS fields (files)
+            # Multi files
             for key in form.keys():
                 file_item = form[key]
-                if file_item.filename:  # C'est un fichier
-                    # Nom unique
-                    pathname = f"memorial/{uuid.uuid4().hex}-{file_item.filename}"
+                if file_item.filename:
+                    # UUID + timestamp + nom → 100% unique
+                    timestamp = str(int(time.time()))
+                    safe_filename = "".join(c for c in file_item.filename if c.isalnum() or c in ".-_ ")
+                    pathname = f"memorial/{uuid.uuid4().hex}-{timestamp}-{safe_filename}"
                     
-                    # LIRE EN BYTES → FIX ERREUR !
                     file_bytes = file_item.file.read()
                     
-                    # Upload avec options
                     blob = vercel_blob.put(
                         pathname,
-                        file_bytes,  # Bytes direct
+                        file_bytes,
                         {
                             "access": "public",
-                            "addRandomSuffix": "true",
+                            "addRandomSuffix": "true",  # STR "true" comme docs !
                             "contentType": file_item.type or "image/jpeg"
                         }
                     )
                     urls.append(blob['url'])
                     new_count += 1
             
-            # Save JSON list
+            # Save JSON bytes
             vercel_blob.put(
                 list_key,
-                json.dumps(urls).encode('utf-8'),  # Bytes aussi !
+                json.dumps(urls).encode('utf-8'),
                 {"access": "public"}
             )
             
@@ -60,7 +60,7 @@ class handler(BaseHTTPRequestHandler):
                 "success": True,
                 "new_count": new_count,
                 "total_count": len(urls),
-                "urls": urls
+                "urls": urls[-5:]  # Dernières 5 pour debug
             }
             
             self.send_response(200)
