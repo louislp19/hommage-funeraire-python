@@ -4,30 +4,45 @@ from http.server import BaseHTTPRequestHandler
 from cgi import FieldStorage
 import vercel_blob
 import uuid
+import json as json_lib
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             form = FieldStorage(fp=self.rfile, headers=self.headers, environ={'REQUEST_METHOD':'POST'})
             
-            urls = []
-            memorial_name = form.getvalue('name', 'Unknown')
+            # ID mémorial unique
+            memorial_id = form.getvalue('name', 'default').replace(' ', '_')
             
-            # Multi files
-            file_keys = [k for k in form.keys() if k.startswith('files')]
-            for key in file_keys:
-                file_item = form[key]
-                if hasattr(file_item, 'file') and file_item.file:
-                    data = file_item.file.read()
-                    pathname = f"memorials/{memorial_name.replace(' ', '_')}/{uuid.uuid4()}-{file_item.filename}"
-                    blob = vercel_blob.put(pathname, data)
-                    urls.append(blob["url"])
+            # Charge images existantes
+            existing_file = f"memorials/{memorial_id}.json"
+            try:
+                existing = json_lib.loads(vercel_blob.get(existing_file).decode())
+            except:
+                existing = []
+            
+            new_urls = []
+            
+            # TOUS les files (multiples)
+            for key in form.keys():
+                if key.startswith('files') or key == 'file':
+                    file_item = form[key]
+                    if hasattr(file_item, 'file') and file_item.file:
+                        data = file_item.file.read()
+                        pathname = f"memorials/{memorial_id}/{uuid.uuid4()}-{getattr(file_item, 'filename', 'image.jpg')}"
+                        blob = vercel_blob.put(pathname, data)
+                        new_urls.append(blob["url"])
+            
+            # Append + save
+            all_urls = existing + new_urls
+            vercel_blob.put(existing_file, json_lib.dumps(all_urls).encode())
             
             response = {
                 "success": True,
-                "urls": urls,
-                "memorial": memorial_name.replace(' ', '_'),
-                "count": len(urls)
+                "new_count": len(new_urls),
+                "total_count": len(all_urls),
+                "memorial_id": memorial_id,
+                "all_urls": all_urls
             }
             
             self.send_response(200)
