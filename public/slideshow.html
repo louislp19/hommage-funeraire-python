@@ -1,52 +1,52 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Mémorial Slideshow</title>
+<title>Mémorial</title>
 <style>
-body{margin:0;background:#000;color:white;font-family:Arial;}
-#slideshow{height:100vh;position:relative;overflow:hidden;}
-img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.5s;}
-img.active{opacity:1;}
-#header{position:absolute;top:20px;left:20px;background:rgba(0,0,0,0.8);padding:20px;border-radius:10px;}
-#back{position:absolute;top:20px;right:20px;}
-button{padding:10px 20px;background:#0070f3;color:white;border:none;border-radius:6px;cursor:pointer;}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body, html { height: 100%; overflow: hidden; background: #000; }
+#slideshow { 
+  position: relative; width: 100vw; height: 100vh; 
+}
+img { 
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+  object-fit: cover; opacity: 0; transition: opacity 2s ease-in-out;
+}
+img.active { opacity: 1; z-index: 1; }
+#name { 
+  position: absolute; bottom: 30px; left: 30px; 
+  background: rgba(0,0,0,0.8); color: white; padding: 20px 30px; 
+  font-family: Arial; font-size: 28px; border-radius: 10px; 
+}
 </style>
 </head>
 <body>
 <div id="slideshow"></div>
-<div id="header">
-  <h1 id="memorialName">Mémorial</h1>
-  <div id="counter">0 / 0</div>
-</div>
-<a href="/upload.html" id="back"><button>← Nouvelle Upload</button></a>
+<div id="name">Chargement...</div>
 
 <script>
-const urlParams = new URLSearchParams(window.location.search);
-const name = urlParams.get('name') || 'demo';
-const images = JSON.parse(localStorage.getItem('memorial_' + name) || '[]');
+const memorial = JSON.parse(localStorage.getItem('currentMemorial') || '{}');
+const images = memorial.images || [];
+const name = memorial.name || 'Mémorial';
 
-document.getElementById('memorialName').textContent = name;
-document.getElementById('counter').textContent = `0 / ${images.length}`;
+document.getElementById('name').textContent = name;
 
-let current = 0;
 const slideshow = document.getElementById('slideshow');
-
-images.forEach((src, i) => {
+images.forEach(src => {
   const img = document.createElement('img');
   img.src = src;
-  img.dataset.index = i;
   slideshow.appendChild(img);
 });
 
-function next() {
-  Array.from(slideshow.children).forEach(img => img.classList.remove('active'));
-  current = (current + 1) % images.length;
-  slideshow.children[current].classList.add('active');
-  document.getElementById('counter').textContent = `${current+1} / ${images.length}`;
+let index = 0;
+function nextSlide() {
+  Array.from(slideshow.children).forEach((img, i) => {
+    img.classList.toggle('active', i === index);
+  });
+  index = (index + 1) % images.length;
 }
-
-setInterval(next, 4000);
-next(); // Start
+setInterval(nextSlide, 5000);
+nextSlide();
 </script>
 </body>
 </html>
