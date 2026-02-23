@@ -1,19 +1,37 @@
 <!DOCTYPE html>
 <html>
+<head><title>Upload Réel</title></head>
 <body>
-<h1>Test Upload</h1>
-<button onclick="test()">TEST API</button>
-<pre id="log"></pre>
+<h1>📁 Upload Fichiers</h1>
+<input type="file" id="file" accept="image/*">
+<button onclick="uploadFile()">Upload</button>
+<pre id="result"></pre>
 
 <script>
-async function test() {
-  document.getElementById('log').textContent = 'Envoi...';
+async function uploadFile() {
+  const fileInput = document.getElementById('file');
+  const file = fileInput.files[0];
+  const result = document.getElementById('result');
+  
+  if (!file) return result.textContent = 'Choisis fichier';
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('memorialId', 'demo');
+  
+  result.textContent = 'Upload...';
+  
   try {
-    const r = await fetch('/api/upload', {method: 'POST'});
-    const data = await r.json();
-    document.getElementById('log').textContent = JSON.stringify(data, null, 2);
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData
+    });
+    
+    const data = await response.json();
+    result.textContent = JSON.stringify(data, null, 2);
+    
   } catch(e) {
-    document.getElementById('log').textContent = e.toString();
+    result.textContent = 'Erreur: ' + e;
   }
 }
 </script>
