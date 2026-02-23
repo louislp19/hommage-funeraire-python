@@ -9,14 +9,13 @@ class handler(BaseHTTPRequestHandler):
         try:
             pathname = f"memorials/demo/{uuid.uuid4()}.jpg"
             
-            # Syntaxe CORRECTE vercel_blob
-            blob = vercel_blob.put(pathname, b"test image", access="public")
+            # Syntaxe MINIMALE vercel_blob
+            blob = vercel_blob.put(pathname, b"test image")
             
             response = {
                 "success": True,
                 "blob_url": blob["url"],
-                "pathname": blob["pathname"],
-                "ready": "pour vrais fichiers"
+                "pathname": blob["pathname"]
             }
             
             self.send_response(200)
