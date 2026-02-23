@@ -10,36 +10,36 @@ class handler(BaseHTTPRequestHandler):
         try:
             form = FieldStorage(fp=self.rfile, headers=self.headers)
             
-            # Global memorial
             memorial_key = "GLOBAL_MEMORIAL_JSON"
             
-            # Load existing URLs
+            # Load URLs existantes
             try:
                 existing_data = vercel_blob.get(memorial_key)
                 urls = json.loads(existing_data)
             except:
                 urls = []
             
-            new_count = 0
+            new_urls = []
             
-            # All files
-            for key in list(form.keys()):
+            # Multi files
+            for key in form.keys():
                 file_item = form[key]
                 if hasattr(file_item, 'file') and file_item.file:
                     image_data = file_item.file.read()
+                    # UUID unique = NO duplicate
                     pathname = f"memorials/global/{uuid.uuid4()}.jpg"
                     blob = vercel_blob.put(pathname, image_data)
-                    urls.append(blob["url"])
-                    new_count += 1
+                    new_urls.append(blob["url"])
             
-            # Save updated list
+            # Append
+            urls.extend(new_urls)
             vercel_blob.put(memorial_key, json.dumps(urls).encode())
             
             response = {
                 "success": True,
-                "new_count": new_count,
+                "new_count": len(new_urls),
                 "total_count": len(urls),
-                "urls": urls[-5:]  # last 5 for preview
+                "urls": urls
             }
             
             self.send_response(200)
@@ -48,8 +48,7 @@ class handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(response).encode())
             
         except Exception as e:
-            response = {"error": str(e)}
             self.send_response(500)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps(response).encode())
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
