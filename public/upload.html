@@ -1,42 +1,52 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Upload</title>
-<style>body{font-family:Arial;padding:50px;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);color:white;height:100vh;display:flex;align-items:center;justify-content:center;}
+<title>Upload Mémorial</title>
+<style>body{font-family:Arial;padding:50px;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);color:white;height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;}
 .container{background:rgba(255,255,255,0.1);padding:40px;border-radius:20px;}
-input[type="file"]{width:100%;padding:15px;margin:20px 0;background:rgba(255,255,255,0.2);color:white;border-radius:10px;border:none;font-size:16px;}
-button{width:100%;padding:20px;font-size:20px;background:#ff6b6b;color:white;border:none;border-radius:10px;cursor:pointer;}
-#status{font-size:18px;margin-top:20px;}</style>
+input[type="file"]{width:80vw;max-width:500px;padding:15px;margin:20px;background:rgba(255,255,255,0.2);color:white;border-radius:10px;border:none;font-size:16px;}
+button{width:80vw;max-width:500px;padding:20px;font-size:20px;background:#ff6b6b;color:white;border:none;border-radius:10px;cursor:pointer;}
+#status{font-size:18px;margin-top:20px;padding:15px;background:rgba(0,0,0,0.3);border-radius:8px;}</style>
 </head>
 <body>
 <div class="container">
-  <h1>📸 Ajouter Photos Mémorial</h1>
+  <h1 style="margin-bottom:10px;">📸 Mémorial Photos</h1>
+  <p style="margin-bottom:30px;opacity:0.9;">Ajoute photos - elles s'accumulent automatiquement</p>
   <input type="file" id="files" multiple accept="image/*">
-  <button onclick="upload()">🚀 Ajouter & Lancer Slideshow</button>
+  <button onclick="uploadPhotos()">🚀 Ajouter Photos</button>
   <div id="status"></div>
+  <a href="/slideshow.html" style="margin-top:20px;color:#ffeb3b;text-decoration:none;">▶️ Lancer Slideshow</a>
 </div>
 
 <script>
-async function upload() {
+async function uploadPhotos() {
   const files = document.getElementById('files').files;
   const status = document.getElementById('status');
   
-  if(!files.length) return status.textContent = 'Choisis photos';
+  if(!files.length) {
+    status.innerHTML = '❌ Sélectionne photos';
+    return;
+  }
   
-  status.textContent = `Ajout ${files.length} photo(s)...`;
+  status.innerHTML = `⏳ Ajout ${files.length} photo(s)...`;
   
   try {
     const formData = new FormData();
-    Array.from(files).forEach(f => formData.append('files[]', f));
+    for(let file of files) {
+      formData.append('file', file);  // 'file' simple
+    }
     
     const res = await fetch('/api/upload', {method: 'POST', body: formData});
     const data = await res.json();
     
-    localStorage.setItem('memorialImages', JSON.stringify(data.urls));
-    status.innerHTML = `✅ ${data.total} photos totales ! <br><a href="/slideshow.html" style="color:#ffeb3b;">Lancer Slideshow</a>`;
-    
+    if(data.success) {
+      localStorage.setItem('memorialImages', JSON.stringify(data.urls));
+      status.innerHTML = `✅ ${data.new_count} ajoutée(s)<br>Total: ${data.total_count} photos<br><a href="/slideshow.html" style="color:#4ade80;">▶️ Voir Slideshow</a>`;
+    } else {
+      status.innerHTML = '❌ ' + (data.error || 'Erreur inconnue');
+    }
   } catch(e) {
-    status.textContent = 'Erreur: ' + e;
+    status.innerHTML = '❌ Erreur réseau';
   }
 }
 </script>
