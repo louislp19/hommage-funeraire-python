@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Upload Photos - Hommage</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+    button { background: #0070f3; color: white; padding: 12px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    button:hover { background: #005bb5; }
+    #result { margin-top: 20px; padding: 15px; border-radius: 6px; background: #f5f5f5; white-space: pre-wrap; }
+    .loading { background: #fff3cd; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  <h1>📸 Envoyer vos photos</h1>
+  <p>Partagez vos souvenirs, ils apparaîtront automatiquement dans le diaporama.</p>
+
+  <form id="upload-form">
+    <input type="hidden" name="memorialId" value="test">
+
+    <div style="margin-bottom: 20px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+        Photos (1-5 images) :
+      </label>
+      <input type="file" name="files" multiple accept="image/*" required>
+    </div>
+
+    <button type="submit">Envoyer les photos</button>
+  </form>
+
+  <div id="result"></div>
+
+  <script>
+    const form = document.getElementById('upload-form');
+    const result = document.getElementById('result');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = new FormData(form);
+      const filesInput = form.querySelector('input[name="files"]');
+      
+      if (filesInput.files.length === 0) {
+        result.textContent = 'Choisissez au moins une photo.';
+        result.className = 'error';
+        return;
+      }
+      
+      if (filesInput.files.length > 5) {
+        result.textContent = 'Maximum 5 photos.';
+        result.className = 'error';
+        return;
+      }
+
+      result.textContent = 'Upload en cours...';
+      result.className = 'loading';
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+          result.textContent = `✅ Succès ! ${data.uploads?.length || 0} photo(s) ajoutée(s):\n${JSON.stringify(data.uploads, null, 2)}`;
+          result.className = 'success';
+          form.reset();
+        } else {
+          result.textContent = `❌ Erreur: ${data.error || 'Serveur indisponible'}`;
+          result.className = 'error';
+        }
+      } catch (err) {
+        result.textContent = `❌ Erreur réseau: ${err.message}`;
+        result.className = 'error';
+      }
+    });
+  </script>
+</body>
+</html>
