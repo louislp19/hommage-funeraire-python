@@ -4,45 +4,41 @@ from http.server import BaseHTTPRequestHandler
 from cgi import FieldStorage
 import vercel_blob
 import uuid
-import json as json_lib
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
-            form = FieldStorage(fp=self.rfile, headers=self.headers, environ={'REQUEST_METHOD':'POST'})
+            form = FieldStorage(fp=self.rfile, headers=self.headers)
             
-            # ID mémorial unique
-            memorial_id = form.getvalue('name', 'default').replace(' ', '_')
+            # Default memorial
+            memorial_key = "GLOBAL_MEMORIAL"
             
-            # Charge images existantes
-            existing_file = f"memorials/{memorial_id}.json"
+            # Load existing
             try:
-                existing = json_lib.loads(vercel_blob.get(existing_file).decode())
+                existing_data = vercel_blob.get(memorial_key).decode()
+                urls = json.loads(existing_data)
             except:
-                existing = []
+                urls = []
             
+            # New files
             new_urls = []
-            
-            # TOUS les files (multiples)
             for key in form.keys():
-                if key.startswith('files') or key == 'file':
-                    file_item = form[key]
-                    if hasattr(file_item, 'file') and file_item.file:
-                        data = file_item.file.read()
-                        pathname = f"memorials/{memorial_id}/{uuid.uuid4()}-{getattr(file_item, 'filename', 'image.jpg')}"
-                        blob = vercel_blob.put(pathname, data)
-                        new_urls.append(blob["url"])
+                file_item = form[key]
+                if hasattr(file_item, 'file') and file_item.file:
+                    data = file_item.file.read()
+                    pathname = f"memorials/global/{uuid.uuid4()}.jpg"
+                    blob = vercel_blob.put(pathname, data)
+                    new_urls.append(blob["url"])
             
-            # Append + save
-            all_urls = existing + new_urls
-            vercel_blob.put(existing_file, json_lib.dumps(all_urls).encode())
+            # Append & save
+            urls.extend(new_urls)
+            vercel_blob.put(memorial_key, json.dumps(urls).encode())
             
             response = {
                 "success": True,
-                "new_count": len(new_urls),
-                "total_count": len(all_urls),
-                "memorial_id": memorial_id,
-                "all_urls": all_urls
+                "new": len(new_urls),
+                "total": len(urls),
+                "urls": urls
             }
             
             self.send_response(200)

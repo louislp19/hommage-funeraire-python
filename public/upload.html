@@ -1,51 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Upload Mémorial</title>
-<style>body{font-family:Arial;padding:50px;text-align:center;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;}
-.container{max-width:600px;margin:auto;background:rgba(255,255,255,0.1);padding:40px;border-radius:20px;}
-input,button{font-size:18px;padding:15px;margin:10px;border:none;border-radius:10px;}
-input[type="file"]{width:100%;background:rgba(255,255,255,0.2);color:white;}
-button{background:#ff6b6b;color:white;cursor:pointer;width:100%;font-weight:bold;}
-#status{font-size:20px;margin:20px;}</style>
+<title>Upload</title>
+<style>body{font-family:Arial;padding:50px;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);color:white;height:100vh;display:flex;align-items:center;justify-content:center;}
+.container{background:rgba(255,255,255,0.1);padding:40px;border-radius:20px;}
+input[type="file"]{width:100%;padding:15px;margin:20px 0;background:rgba(255,255,255,0.2);color:white;border-radius:10px;border:none;font-size:16px;}
+button{width:100%;padding:20px;font-size:20px;background:#ff6b6b;color:white;border:none;border-radius:10px;cursor:pointer;}
+#status{font-size:18px;margin-top:20px;}</style>
 </head>
 <body>
 <div class="container">
-  <h1>📸 Créer Mémorial</h1>
-  <input type="text" id="name" placeholder="Nom du défunt" value="John Doe">
+  <h1>📸 Ajouter Photos Mémorial</h1>
   <input type="file" id="files" multiple accept="image/*">
-  <button onclick="createMemorial()">🚀 Créer & Lancer Slideshow</button>
+  <button onclick="upload()">🚀 Ajouter & Lancer Slideshow</button>
   <div id="status"></div>
 </div>
 
 <script>
-async function createMemorial() {
-  const name = document.getElementById('name').value;
+async function upload() {
   const files = document.getElementById('files').files;
   const status = document.getElementById('status');
   
-  if(!files.length) return status.textContent = '❌ Photos requises';
+  if(!files.length) return status.textContent = 'Choisis photos';
   
-  status.textContent = '⏳ Upload...';
+  status.textContent = `Ajout ${files.length} photo(s)...`;
   
   try {
     const formData = new FormData();
-    Array.from(files).forEach(file => formData.append('files[]', file));
-    formData.append('name', name);
+    Array.from(files).forEach(f => formData.append('files[]', f));
     
     const res = await fetch('/api/upload', {method: 'POST', body: formData});
     const data = await res.json();
     
-    if(data.success) {
-      // Auto fullscreen slideshow
-      localStorage.setItem('currentMemorial', JSON.stringify({
-        name: name,
-        images: data.urls
-      }));
-      window.location.href = '/slideshow.html';
-    }
+    localStorage.setItem('memorialImages', JSON.stringify(data.urls));
+    status.innerHTML = `✅ ${data.total} photos totales ! <br><a href="/slideshow.html" style="color:#ffeb3b;">Lancer Slideshow</a>`;
+    
   } catch(e) {
-    status.textContent = '❌ ' + e;
+    status.textContent = 'Erreur: ' + e;
   }
 }
 </script>
