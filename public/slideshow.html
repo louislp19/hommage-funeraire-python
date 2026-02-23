@@ -1,34 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Mémorial</title>
-<style>*{margin:0;padding:0;box-sizing:border-box;}
-body,html{height:100%;overflow:hidden;background:#000;}
-#slideshow{position:relative;width:100vw;height:100vh;}
-img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 2s;}
-img.active{opacity:1;}
+<title>Mémorial Slideshow</title>
+<style>
+body, html { margin:0; padding:0; height:100%; overflow:hidden; background:black; font-family:Arial; }
+#slideshow { position:relative; width:100vw; height:100vh; }
+img { position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity 1s; }
+img.active { opacity:1; }
+#nom { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); color:white; font-size:24px; text-shadow:2px 2px 4px black; z-index:10; }
 </style>
 </head>
 <body>
 <div id="slideshow"></div>
+<div id="nom">Mémorial</div>
 
 <script>
-const images = JSON.parse(localStorage.getItem('memorialImages') || '[]');
 const slideshow = document.getElementById('slideshow');
+const list_key = 'GLOBAL_MEMORIAL_IMAGES';
 
-images.forEach(src => {
-  const img = document.createElement('img');
-  img.src = src;
-  slideshow.appendChild(img);
+// Charger images depuis blob JSON
+fetch(`https://blob.vercel-storage.com/${list_key}?t=${Date.now()}`)
+.then(res => res.json())
+.then(data => {
+    const images = Array.isArray(data) ? data : [];
+    if(images.length === 0) {
+        slideshow.innerHTML = '<p style="color:white;text-align:center;line-height:100vh;font-size:32px;">Aucune photo uploadée</p>';
+        return;
+    }
+    
+    images.forEach(url => {
+        const img = document.createElement('img');
+        img.src = url;
+        slideshow.appendChild(img);
+    });
+    
+    let index = 0;
+    const total = images.length;
+    function next() {
+        Array.from(slideshow.children).forEach((img, i) => {
+            img.classList.toggle('active', i === index);
+        });
+        index = (index + 1) % total;
+    }
+    setInterval(next, 4000);  // 4s par image
+    next();
+})
+.catch(e => {
+    slideshow.innerHTML = '<p style="color:red;text-align:center;line-height:100vh;">Erreur chargement</p>';
 });
-
-let index = 0;
-function next() {
-  Array.from(slideshow.children).forEach((img, i) => img.classList.toggle('active', i === index));
-  index = (index + 1) % images.length;
-}
-setInterval(next, 4000);
-next();
 </script>
 </body>
 </html>
