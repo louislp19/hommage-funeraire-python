@@ -3,58 +3,72 @@
 <head>
   <meta charset="UTF-8">
   <title>Upload Mémorial</title>
-  <script src="https://unpkg.com/@vercel/blob@1/browser.js"></script>
-  <style>img{max-width:200px;margin:5px}</style>
+  <script src="https://unpkg.com/@vercel/blob@1/dist/index.umd.js"></script>
+  <style>
+    body { font-family: Arial; max-width: 800px; margin: 50px auto; }
+    img { max-width: 200px; max-height: 200px; margin: 10px; border: 1px solid #ccc; }
+    button { padding: 10px 20px; background: #0070f3; color: white; border: none; cursor: pointer; }
+    #status { margin: 20px 0; padding: 10px; background: #f0f0f0; }
+  </style>
 </head>
 <body>
   <h1>📸 Upload Photos Mémorial</h1>
   
-  <input type="file" id="files" multiple accept="image/*">
-  <input type="text" id="memorialId" placeholder="ID mémorial (test)" value="test">
-  <button onclick="upload()">🚀 Upload</button>
+  <div>
+    <input type="file" id="files" multiple accept="image/*">
+    <input type="text" id="memorialId" placeholder="ID (ex: test)" value="test">
+    <button onclick="uploadFiles()">🚀 Upload</button>
+  </div>
   
   <div id="status"></div>
   <div id="gallery"></div>
 
   <script>
-    const handle = "hommage-funeraire-python"; // ← REMPLACE PAR TON HANDLE
+    // ← REMPLACE PAR TON HANDLE EXACT (Vercel Settings > General > Link)
+    const handle = "TON_HANDLE_VERCEL"; 
     
-    async function upload() {
+    async function uploadFiles() {
       const files = document.getElementById('files').files;
       const memorialId = document.getElementById('memorialId').value;
       const status = document.getElementById('status');
-      const gallery = document.getElementById('gallery');
       
-      if (!files.length) return status.innerHTML = '❌ Choisis des fichiers';
+      if (!files.length) {
+        status.innerHTML = '❌ Sélectionne des images';
+        return;
+      }
       
-      status.innerHTML = '⏳ Upload...';
+      if (handle === "TON_HANDLE_VERCEL") {
+        status.innerHTML = '❌ Remplace TON_HANDLE_VERCEL par ton vrai handle !';
+        return;
+      }
+      
+      status.innerHTML = `⏳ Upload ${files.length} image(s)...`;
       
       try {
         const urls = [];
         for (let file of files) {
           const pathname = `memorials/${memorialId}/${Date.now()}-${file.name}`;
           const blob = await Blobby.createUpload(handle, {
-            pathname,
-            file
+            pathname: pathname,
+            file: file
           });
           urls.push(blob);
         }
         
-        status.innerHTML = `✅ ${urls.length} photo(s) uploadées !`;
-        gallery.innerHTML = urls.map(u => 
+        status.innerHTML = `✅ ${urls.length} image(s) uploadées ! 📋 Copiées`;
+        document.getElementById('gallery').innerHTML = urls.map(blob => 
           `<div>
-            <img src="${u.url}" alt="${u.pathname}">
-            <br><small>${u.pathname}</small>
+            <img src="${blob.url}" alt="${blob.pathname}" loading="lazy">
+            <br><small>${blob.pathname}</small>
           </div>`
         ).join('');
         
-        // Copie URLs pour slideshow
-        navigator.clipboard.writeText(JSON.stringify(urls));
-        status.innerHTML += ' 📋 URLs copiées !';
+        // Copie JSON pour slideshow
+        await navigator.clipboard.writeText(JSON.stringify(urls, null, 2));
         
-      } catch (e) {
-        status.innerHTML = `❌ ${e.message}`;
-        console.error(e);
+      } catch (error) {
+        status.innerHTML = `❌ Erreur: ${error.message}`;
+        console.error('Upload error:', error);
       }
     }
   </script>
