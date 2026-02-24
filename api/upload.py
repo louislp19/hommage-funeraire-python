@@ -33,8 +33,16 @@ class handler(BaseHTTPRequestHandler):
             prefix = f"memorial/{event}/"
             uploaded_urls = []
 
-            # form.getlist handles multiple files with the same field name
-            items = form.getlist('files')
+            # Collect all file items from all form keys
+            # (handles both 'files' and any other file field names)
+            items = []
+            for key in form.keys():
+                field = form[key]
+                if isinstance(field, list):
+                    items.extend(field)
+                else:
+                    items.append(field)
+
             for item in items:
                 if not hasattr(item, 'filename') or not item.filename:
                     continue
@@ -66,6 +74,9 @@ class handler(BaseHTTPRequestHandler):
                 url = blob.get('url') or blob.get('downloadUrl', '')
                 if url:
                     uploaded_urls.append(url)
+
+            if len(uploaded_urls) == 0:
+                raise Exception("Aucun fichier valide reçu. Vérifiez que les photos sont bien sélectionnées.")
 
             response = {
                 "success": True,
