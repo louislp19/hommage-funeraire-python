@@ -23,6 +23,17 @@
         </div>
         <input type="file" id="portrait-input" accept="image/*" style="display:none">
 
+        <label for="duration-select" style="margin-top:14px;">Durée d'affichage par photo</label>
+        <select id="duration-select">
+            <option value="3">3 secondes</option>
+            <option value="5" selected>5 secondes (défaut)</option>
+            <option value="7">7 secondes</option>
+            <option value="10">10 secondes</option>
+            <option value="15">15 secondes</option>
+            <option value="20">20 secondes</option>
+            <option value="30">30 secondes</option>
+        </select>
+
         <button id="generate-btn" onclick="genererLiens()">Générer les liens</button>
         <p id="generate-status" class="progress-text" style="margin-top:10px;display:none"></p>
     </div>
@@ -102,10 +113,11 @@ async function genererLiens() {
 
     btn.disabled = false;
 
+    const duration = document.getElementById('duration-select').value;
     const base = window.location.origin;
     const portraitParam = portraitUrl ? `&portrait=${encodeURIComponent(portraitUrl)}` : '';
     uploadUrl = `${base}/upload.html?event=${event}&name=${encodeURIComponent(name)}${portraitParam}`;
-    slideshowUrl = `${base}/slideshow.html?event=${event}&name=${encodeURIComponent(name)}`;
+    slideshowUrl = `${base}/slideshow.html?event=${event}&name=${encodeURIComponent(name)}&duration=${duration}`;
     backupUrl = `${base}/backup.html?event=${event}&name=${encodeURIComponent(name)}`;
 
     document.getElementById('upload-link-text').textContent = uploadUrl;

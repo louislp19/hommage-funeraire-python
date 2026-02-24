@@ -86,6 +86,7 @@
 const params = new URLSearchParams(window.location.search);
 const event = params.get('event') || 'default';
 const name = params.get('name') || 'Mémorial';
+const slideDuration = Math.max(2, parseInt(params.get('duration') || '5', 10)) * 1000;
 
 document.getElementById('name-display').textContent = name;
 document.title = `Mémorial — ${name}`;
@@ -149,7 +150,7 @@ async function loadImages() {
 
         if (slideElements.length > 0 && !slideTimer) {
             showSlide(0);
-            slideTimer = setInterval(nextSlide, 5000);
+            slideTimer = setInterval(nextSlide, slideDuration);
         }
 
         if (slideElements.length === 0) {
