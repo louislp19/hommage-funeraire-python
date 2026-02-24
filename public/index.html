@@ -116,7 +116,7 @@ async function genererLiens() {
     const duration = document.getElementById('duration-select').value;
     const base = window.location.origin;
     const portraitParam = portraitUrl ? `&portrait=${encodeURIComponent(portraitUrl)}` : '';
-    uploadUrl = `${base}/upload.html?event=${event}&name=${encodeURIComponent(name)}${portraitParam}`;
+    uploadUrl = `${base}/upload.html?event=${event}&name=${encodeURIComponent(name)}&duration=${duration}${portraitParam}`;
     slideshowUrl = `${base}/slideshow.html?event=${event}&name=${encodeURIComponent(name)}&duration=${duration}`;
     backupUrl = `${base}/backup.html?event=${event}&name=${encodeURIComponent(name)}`;
 
