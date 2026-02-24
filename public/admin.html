@@ -45,8 +45,35 @@
             font-size: 0.8rem;
             color: #666;
             font-family: Arial, sans-serif;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
+        .pin-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-family: Arial, sans-serif;
+            font-size: 0.8rem;
+        }
+        .pin-label { color: #555; }
+        .pin-value {
+            color: #c9a84c;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+            letter-spacing: 2px;
+            min-width: 40px;
+        }
+        .pin-toggle {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #555;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+        }
+        .pin-toggle:hover { color: #c9a84c; border-color: rgba(201,168,76,0.3); }
         .duration-row {
             display: flex;
             align-items: center;
@@ -264,6 +291,11 @@ function buildCard(ev) {
                 <div class="event-info">
                     <div class="event-name">${name}</div>
                     <div class="event-meta">${ev.count} photo${ev.count !== 1 ? 's' : ''} · ${formatDate(ev.latest)}</div>
+                    <div class="pin-row">
+                        <span class="pin-label">PIN famille :</span>
+                        <span class="pin-value">••••</span>
+                        <button class="pin-toggle">Afficher</button>
+                    </div>
                     <div class="duration-row">
                         <label for="${durId}">Durée des slides :</label>
                         <select id="${durId}">
@@ -308,6 +340,29 @@ function buildCard(ev) {
         copyText(`${base}/slideshow.html?event=${slug}&name=${encodeURIComponent(name)}&duration=${dur}`);
     });
     wrap.querySelector('.btn-delete').addEventListener('click', () => deleteEvent(slug, wrap));
+
+    let pinLoaded = false;
+    let pinValue = '';
+    const pinValueEl = wrap.querySelector('.pin-value');
+    const pinToggleBtn = wrap.querySelector('.pin-toggle');
+    let pinVisible = false;
+
+    pinToggleBtn.addEventListener('click', async function() {
+        if (!pinLoaded) {
+            pinToggleBtn.textContent = '...';
+            try {
+                const res = await fetch(`/api/pin?event=${slug}`);
+                const data = await res.json();
+                pinValue = data.pin || 'N/A';
+            } catch (e) {
+                pinValue = 'Erreur';
+            }
+            pinLoaded = true;
+        }
+        pinVisible = !pinVisible;
+        pinValueEl.textContent = pinVisible ? pinValue : '••••';
+        pinToggleBtn.textContent = pinVisible ? 'Masquer' : 'Afficher';
+    });
     wrap.querySelector('.qr-btn').addEventListener('click', () => {
         const dur = durSelect.value;
         const uploadUrl = `${base}/upload.html?event=${slug}&name=${encodeURIComponent(name)}&duration=${dur}`;
