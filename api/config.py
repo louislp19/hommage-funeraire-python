@@ -39,6 +39,21 @@ class handler(BaseHTTPRequestHandler):
             pin = str(body.get('pin', '')).strip()
             action = body.get('action', '')
 
+            if action == 'set_expiry':
+                # Admin action — no PIN required
+                if not event:
+                    self._respond(400, {'success': False, 'error': 'Paramètre event requis'})
+                    return
+                expiry_date = str(body.get('expiry_date', '')).strip()
+                config = self._load_config(event) or {}
+                if expiry_date:
+                    config['expiry_date'] = expiry_date
+                else:
+                    config.pop('expiry_date', None)
+                self._save_config(event, config)
+                self._respond(200, {'success': True})
+                return
+
             if not event or not pin:
                 self._respond(400, {'success': False, 'error': 'Paramètres manquants'})
                 return

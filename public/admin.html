@@ -200,6 +200,41 @@
             font-family: Arial, sans-serif;
         }
         .back-link:hover { color: #c9a84c; }
+        .expiry-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .expiry-row label {
+            font-size: 0.8rem;
+            color: #666;
+            margin: 0;
+            text-transform: none;
+            letter-spacing: 0;
+            white-space: nowrap;
+            font-family: Arial, sans-serif;
+        }
+        .expiry-row input[type="date"] {
+            width: auto;
+            padding: 5px 8px;
+            font-size: 13px;
+            margin: 0;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #ccc;
+            border-radius: 4px;
+            font-family: Arial, sans-serif;
+            color-scheme: dark;
+        }
+        .expiry-status {
+            font-size: 0.75rem;
+            font-family: Arial, sans-serif;
+        }
+        .expiry-status.ok { color: #7dbb8a; }
+        .expiry-status.expired { color: #d07070; }
+        .expiry-status.soon { color: #c9a84c; }
     </style>
 </head>
 <body>
@@ -270,11 +305,24 @@ async function deleteEvent(slug, cardWrap) {
     }
 }
 
+function expiryStatus(dateStr) {
+    if (!dateStr) return '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const exp = new Date(dateStr + 'T00:00:00');
+    const diffDays = Math.round((exp - today) / 86400000);
+    if (diffDays < 0) return `<span class="expiry-status expired">Expiré il y a ${-diffDays} jour${-diffDays > 1 ? 's' : ''}</span>`;
+    if (diffDays === 0) return `<span class="expiry-status expired">Expire aujourd'hui</span>`;
+    if (diffDays <= 7) return `<span class="expiry-status soon">Dans ${diffDays} jour${diffDays > 1 ? 's' : ''}</span>`;
+    return `<span class="expiry-status ok">Dans ${diffDays} jours</span>`;
+}
+
 function buildCard(ev) {
     const slug = ev.slug;
     const name = slugToName(slug);
     const base = window.location.origin;
     const durId = `dur-${slug}`;
+    const expId = `exp-${slug}`;
 
     const wrap = document.createElement('div');
     wrap.className = 'card-wrap';
@@ -300,13 +348,18 @@ function buildCard(ev) {
                         <label for="${durId}">Durée des slides :</label>
                         <select id="${durId}">
                             <option value="3">3 s</option>
-                            <option value="5" selected>5 s</option>
+                            <option value="5">5 s</option>
                             <option value="7">7 s</option>
                             <option value="10">10 s</option>
                             <option value="15">15 s</option>
                             <option value="20">20 s</option>
                             <option value="30">30 s</option>
                         </select>
+                    </div>
+                    <div class="expiry-row">
+                        <label for="${expId}">Suppression auto :</label>
+                        <input type="date" id="${expId}" title="Laisser vide pour ne pas supprimer automatiquement">
+                        <span class="expiry-status-label"></span>
                     </div>
                     <div class="event-links">
                         <a class="btn-sm btn-sm-gold" href="${base}/upload.html?event=${slug}&name=${encodeURIComponent(name)}" target="_blank">↑ Upload</a>
@@ -323,6 +376,39 @@ function buildCard(ev) {
 
     const durSelect = wrap.querySelector(`#${durId}`);
     const slideshowAnchor = wrap.querySelector('.slideshow-link');
+
+    // Pre-fill duration from config
+    if (ev.duration) {
+        const opt = durSelect.querySelector(`option[value="${ev.duration}"]`);
+        if (opt) opt.selected = true;
+    }
+
+    // Pre-fill expiry date
+    const expInput = wrap.querySelector(`#${expId}`);
+    const expStatusEl = wrap.querySelector('.expiry-status-label');
+    if (ev.expiry) {
+        expInput.value = ev.expiry;
+        expStatusEl.innerHTML = expiryStatus(ev.expiry);
+    }
+    expInput.addEventListener('change', async function() {
+        const dateVal = expInput.value;
+        expStatusEl.innerHTML = '...';
+        try {
+            const res = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event: slug, action: 'set_expiry', expiry_date: dateVal })
+            });
+            const data = await res.json();
+            if (data.success) {
+                expStatusEl.innerHTML = dateVal ? expiryStatus(dateVal) : '<span class="expiry-status ok">Aucune</span>';
+            } else {
+                expStatusEl.innerHTML = '<span class="expiry-status expired">Erreur</span>';
+            }
+        } catch (e) {
+            expStatusEl.innerHTML = '<span class="expiry-status expired">Erreur réseau</span>';
+        }
+    });
 
     function updateSlideshowHref() {
         const dur = durSelect.value;

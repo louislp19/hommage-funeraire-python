@@ -1,6 +1,16 @@
 import json
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler
 import vercel_blob
+
+
+def fetch_config(url):
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            return json.loads(resp.read().decode('utf-8'))
+    except Exception:
+        return {}
 
 
 class handler(BaseHTTPRequestHandler):
@@ -9,6 +19,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             events = {}
             portraits = {}
+            config_urls = {}
 
             # List all memorial photos
             cursor = None
@@ -40,7 +51,6 @@ class handler(BaseHTTPRequestHandler):
                 result = vercel_blob.list(kwargs)
                 for blob in result.get('blobs', []):
                     pathname = blob.get('pathname', '')
-                    # portrait/{slug}.ext
                     parts = pathname.split('/')
                     if len(parts) == 2:
                         slug = parts[1].rsplit('.', 1)[0]
@@ -49,12 +59,41 @@ class handler(BaseHTTPRequestHandler):
                 if not result.get('hasMore') or not cursor:
                     break
 
+            # List config files to get expiry dates
+            cursor = None
+            while True:
+                kwargs = {"prefix": "config/", "limit": 1000}
+                if cursor:
+                    kwargs["cursor"] = cursor
+                result = vercel_blob.list(kwargs)
+                for blob in result.get('blobs', []):
+                    parts = blob.get('pathname', '').split('/')
+                    if len(parts) == 2:
+                        slug = parts[1].rsplit('.', 1)[0]
+                        url = blob.get('url', '')
+                        if url and slug in events:
+                            config_urls[slug] = url
+                cursor = result.get('cursor')
+                if not result.get('hasMore') or not cursor:
+                    break
+
+            # Fetch configs in parallel
+            configs = {}
+            if config_urls:
+                with ThreadPoolExecutor(max_workers=10) as executor:
+                    futures = {executor.submit(fetch_config, url): slug
+                               for slug, url in config_urls.items()}
+                    for future, slug in futures.items():
+                        configs[slug] = future.result()
+
             event_list = [
                 {
                     'slug': slug,
                     'count': data['count'],
                     'latest': data['latest'],
-                    'portrait': portraits.get(slug, '')
+                    'portrait': portraits.get(slug, ''),
+                    'expiry': configs.get(slug, {}).get('expiry_date', ''),
+                    'duration': configs.get(slug, {}).get('duration', '5'),
                 }
                 for slug, data in events.items()
             ]
