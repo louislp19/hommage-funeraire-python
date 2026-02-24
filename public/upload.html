@@ -8,6 +8,11 @@
 </head>
 <body>
 <div class="container">
+    <div id="salon-branding" class="salon-branding" style="display:none">
+        <img id="salon-logo" class="salon-logo" src="" alt="">
+        <p id="salon-name-text" class="salon-name-text"></p>
+    </div>
+
     <div id="portrait-section" style="display:none">
         <div class="portrait-frame">
             <img id="portrait-img" src="" alt="">
@@ -195,6 +200,16 @@ async function startUpload() {
     updateFileCount();
     document.getElementById('upload-btn').disabled = false;
 }
+
+// Branding
+fetch('/api/branding').then(r => r.json()).then(b => {
+    if (b.logo_url || b.salon_name) {
+        if (b.logo_url) document.getElementById('salon-logo').src = b.logo_url;
+        else document.getElementById('salon-logo').style.display = 'none';
+        if (b.salon_name) document.getElementById('salon-name-text').textContent = b.salon_name;
+        document.getElementById('salon-branding').style.display = 'block';
+    }
+}).catch(() => {});
 
 // QR Code
 function showQR() {
