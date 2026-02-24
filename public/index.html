@@ -15,7 +15,7 @@
         <h2>Créer un hommage</h2>
         <label for="defunt-name">Nom du défunt</label>
         <input type="text" id="defunt-name" placeholder="ex: Jean Tremblay" autocomplete="off">
-        <button onclick="createEvent()">Générer les liens</button>
+        <button onclick="genererLiens()">Générer les liens</button>
     </div>
 
     <div class="card" id="links-card" style="display:none">
@@ -53,7 +53,7 @@ let uploadUrl = '';
 let slideshowUrl = '';
 let backupUrl = '';
 
-function createEvent() {
+function genererLiens() {
     const name = document.getElementById('defunt-name').value.trim();
     if (!name) {
         document.getElementById('defunt-name').focus();
@@ -93,7 +93,7 @@ function copyLink(type) {
 
 // Allow pressing Enter in the input field
 document.getElementById('defunt-name').addEventListener('keydown', e => {
-    if (e.key === 'Enter') createEvent();
+    if (e.key === 'Enter') genererLiens();
 });
 </script>
 </body>
