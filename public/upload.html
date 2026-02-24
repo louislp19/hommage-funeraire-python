@@ -35,7 +35,6 @@
 
     <div class="card" id="links-card" style="display:none">
         <a id="slideshow-link" class="btn-gold btn-block">▶ Voir le Slideshow</a>
-        <a id="backup-link" class="btn-outline btn-block">⬇ Télécharger toutes les photos</a>
     </div>
 </div>
 
@@ -141,11 +140,11 @@ async function startUpload() {
             const res = await fetch('/api/upload', { method: 'POST', body: formData });
             const data = await res.json();
 
-            if (data.success) {
+            if (data.success && data.new_count > 0) {
                 successCount++;
             } else {
                 errorCount++;
-                console.error('Erreur upload:', data.error);
+                console.error('Erreur upload:', data.error || `new_count=${data.new_count}`);
             }
         } catch (e) {
             errorCount++;

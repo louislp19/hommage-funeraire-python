@@ -33,6 +33,12 @@
 
         <hr class="divider">
 
+        <p class="label-text">Lien backup à envoyer à la famille après l'événement :</p>
+        <div class="link-box" id="backup-link-text"></div>
+        <button class="btn-copy" onclick="copyLink('backup')">Copier ce lien</button>
+
+        <hr class="divider">
+
         <div class="action-links">
             <a id="open-upload" class="btn-gold" target="_blank">Ouvrir la page d'upload</a>
             <a id="open-slideshow" class="btn-outline" target="_blank">Ouvrir le slideshow</a>
@@ -45,6 +51,7 @@
 <script>
 let uploadUrl = '';
 let slideshowUrl = '';
+let backupUrl = '';
 
 function createEvent() {
     const name = document.getElementById('defunt-name').value.trim();
@@ -65,16 +72,18 @@ function createEvent() {
     const base = window.location.origin;
     uploadUrl = `${base}/upload.html?event=${event}&name=${encodeURIComponent(name)}`;
     slideshowUrl = `${base}/slideshow.html?event=${event}&name=${encodeURIComponent(name)}`;
+    backupUrl = `${base}/backup.html?event=${event}&name=${encodeURIComponent(name)}`;
 
     document.getElementById('upload-link-text').textContent = uploadUrl;
     document.getElementById('slideshow-link-text').textContent = slideshowUrl;
+    document.getElementById('backup-link-text').textContent = backupUrl;
     document.getElementById('open-upload').href = uploadUrl;
     document.getElementById('open-slideshow').href = slideshowUrl;
     document.getElementById('links-card').style.display = 'block';
 }
 
 function copyLink(type) {
-    const text = type === 'upload' ? uploadUrl : slideshowUrl;
+    const text = type === 'upload' ? uploadUrl : type === 'backup' ? backupUrl : slideshowUrl;
     navigator.clipboard.writeText(text).then(() => {
         const confirm = document.getElementById('copy-confirm');
         confirm.style.display = 'block';
