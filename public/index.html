@@ -34,6 +34,9 @@
             <option value="30">30 secondes</option>
         </select>
 
+        <label for="pin-input" style="margin-top:14px;">Code PIN famille</label>
+        <input type="text" id="pin-input" placeholder="ex: 1234" maxlength="8" autocomplete="off" inputmode="numeric">
+
         <button id="generate-btn" onclick="genererLiens()">Générer les liens</button>
         <p id="generate-status" class="progress-text" style="margin-top:10px;display:none"></p>
     </div>
@@ -59,6 +62,12 @@
 
         <hr class="divider">
 
+        <p class="label-text">Lien de gestion famille (protégé par PIN) :</p>
+        <div class="link-box" id="manage-link-text"></div>
+        <button class="btn-copy" onclick="copyLink('manage')">Copier ce lien</button>
+
+        <hr class="divider">
+
         <div class="action-links">
             <a id="open-upload" class="btn-gold" target="_blank">Ouvrir la page d'upload</a>
             <a id="open-slideshow" class="btn-outline" target="_blank">Ouvrir le slideshow</a>
@@ -72,11 +81,18 @@
 let uploadUrl = '';
 let slideshowUrl = '';
 let backupUrl = '';
+let manageUrl = '';
 
 async function genererLiens() {
     const name = document.getElementById('defunt-name').value.trim();
     if (!name) {
         document.getElementById('defunt-name').focus();
+        return;
+    }
+
+    const pin = document.getElementById('pin-input').value.trim();
+    if (!pin) {
+        document.getElementById('pin-input').focus();
         return;
     }
 
@@ -111,6 +127,20 @@ async function genererLiens() {
         statusEl.style.display = 'none';
     }
 
+    // Save config (PIN + duration) to Vercel Blob
+    statusEl.textContent = 'Sauvegarde de la configuration...';
+    statusEl.style.display = 'block';
+    try {
+        await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event, pin, action: 'save', duration: document.getElementById('duration-select').value })
+        });
+    } catch (e) {
+        console.error('Config save error:', e);
+    }
+    statusEl.style.display = 'none';
+
     btn.disabled = false;
 
     const duration = document.getElementById('duration-select').value;
@@ -119,17 +149,19 @@ async function genererLiens() {
     uploadUrl = `${base}/upload.html?event=${event}&name=${encodeURIComponent(name)}&duration=${duration}${portraitParam}`;
     slideshowUrl = `${base}/slideshow.html?event=${event}&name=${encodeURIComponent(name)}&duration=${duration}`;
     backupUrl = `${base}/backup.html?event=${event}&name=${encodeURIComponent(name)}`;
+    manageUrl = `${base}/manage.html?event=${event}&name=${encodeURIComponent(name)}`;
 
     document.getElementById('upload-link-text').textContent = uploadUrl;
     document.getElementById('slideshow-link-text').textContent = slideshowUrl;
     document.getElementById('backup-link-text').textContent = backupUrl;
+    document.getElementById('manage-link-text').textContent = manageUrl;
     document.getElementById('open-upload').href = uploadUrl;
     document.getElementById('open-slideshow').href = slideshowUrl;
     document.getElementById('links-card').style.display = 'block';
 }
 
 function copyLink(type) {
-    const text = type === 'upload' ? uploadUrl : type === 'backup' ? backupUrl : slideshowUrl;
+    const text = type === 'upload' ? uploadUrl : type === 'backup' ? backupUrl : type === 'manage' ? manageUrl : slideshowUrl;
     navigator.clipboard.writeText(text).then(() => {
         const confirm = document.getElementById('copy-confirm');
         confirm.style.display = 'block';

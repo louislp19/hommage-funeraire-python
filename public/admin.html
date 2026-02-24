@@ -283,7 +283,8 @@ function buildCard(ev) {
                         <button class="btn-sm btn-sm-ghost copy-upload-btn">Copier upload</button>
                         <button class="btn-sm btn-sm-ghost copy-slideshow-btn">Copier slideshow</button>
                     </div>
-                    <a class="btn-backup backup-link" href="${base}/backup.html?event=${slug}&name=${encodeURIComponent(name)}" target="_blank">⬇ Télécharger toutes les photos (backup)</a>
+                    <a class="btn-backup" href="${base}/manage.html?event=${slug}&name=${encodeURIComponent(name)}" target="_blank">⚙ Espace famille (gestion + suppression de photos)</a>
+                    <a class="btn-backup backup-link" href="${base}/backup.html?event=${slug}&name=${encodeURIComponent(name)}" target="_blank" style="color:#7dbb8a;border-color:rgba(125,187,138,0.4);">⬇ Télécharger toutes les photos (backup)</a>
                 </div>
             </div>
         </div>`;
