@@ -279,6 +279,7 @@ function buildCard(ev) {
                     <div class="event-links">
                         <a class="btn-sm btn-sm-gold" href="${base}/upload.html?event=${slug}&name=${encodeURIComponent(name)}" target="_blank">↑ Upload</a>
                         <a class="btn-sm btn-sm-outline slideshow-link" href="#" target="_blank">▶ Slideshow</a>
+                        <button class="btn-sm btn-sm-ghost qr-btn">📱 QR Code</button>
                         <button class="btn-sm btn-sm-ghost copy-upload-btn">Copier upload</button>
                         <button class="btn-sm btn-sm-ghost copy-slideshow-btn">Copier slideshow</button>
                     </div>
@@ -306,6 +307,11 @@ function buildCard(ev) {
         copyText(`${base}/slideshow.html?event=${slug}&name=${encodeURIComponent(name)}&duration=${dur}`);
     });
     wrap.querySelector('.btn-delete').addEventListener('click', () => deleteEvent(slug, wrap));
+    wrap.querySelector('.qr-btn').addEventListener('click', () => {
+        const dur = durSelect.value;
+        const uploadUrl = `${base}/upload.html?event=${slug}&name=${encodeURIComponent(name)}&duration=${dur}`;
+        showQR(uploadUrl, name);
+    });
 
     return wrap;
 }
@@ -329,6 +335,62 @@ async function load() {
 }
 
 load();
+
+// QR Code modal
+function showQR(url, label) {
+    const modal = document.getElementById('qr-modal');
+    const canvas = document.getElementById('qr-canvas');
+    canvas.innerHTML = '';
+    document.getElementById('qr-label').textContent = `Page d'envoi de photos — ${label}`;
+    document.getElementById('qr-url').textContent = url;
+    modal._url = url;
+    modal._label = label;
+    modal.style.display = 'flex';
+    new QRCode(canvas, {
+        text: url,
+        width: 260,
+        height: 260,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+    });
+}
+
+function closeQR() {
+    document.getElementById('qr-modal').style.display = 'none';
+}
+
+function printQR() {
+    const modal = document.getElementById('qr-modal');
+    const canvas = document.getElementById('qr-canvas');
+    const img = canvas.querySelector('img') || canvas.querySelector('canvas');
+    const src = img.tagName === 'CANVAS' ? img.toDataURL() : img.src;
+    const label = modal._label || '';
+    const url = modal._url || '';
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html><head><title>QR Code — ${label}</title>
+        <style>body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;}
+        img{width:320px;height:320px;}h2{margin-bottom:12px;font-size:20px;letter-spacing:1px;}
+        p{margin-top:14px;font-size:12px;color:#555;text-align:center;word-break:break-all;max-width:340px;}</style></head>
+        <body><h2>${label}</h2><img src="${src}"><p>${url}</p></body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+}
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<!-- QR Modal -->
+<div id="qr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:200;align-items:center;justify-content:center;flex-direction:column;" onclick="closeQR()">
+    <div style="background:#fff;padding:28px;border-radius:8px;text-align:center;max-width:90vw;" onclick="event.stopPropagation()">
+        <p style="font-family:Arial,sans-serif;font-size:13px;color:#444;margin-bottom:14px;font-weight:bold;" id="qr-label"></p>
+        <div id="qr-canvas"></div>
+        <p style="font-family:monospace;font-size:11px;color:#888;margin-top:10px;word-break:break-all;max-width:280px;" id="qr-url"></p>
+        <div style="margin-top:14px;display:flex;gap:10px;justify-content:center;">
+            <button onclick="printQR()" style="background:#111318;color:#c9a84c;border:none;padding:8px 18px;border-radius:4px;font-size:13px;cursor:pointer;font-weight:bold;">Imprimer</button>
+            <button onclick="closeQR()" style="background:#eee;color:#333;border:none;padding:8px 18px;border-radius:4px;font-size:13px;cursor:pointer;">Fermer</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>

@@ -41,6 +41,23 @@
     <div class="card" id="links-card" style="display:none">
         <a id="slideshow-link" class="btn-gold btn-block">▶ Voir le Slideshow</a>
     </div>
+
+    <div class="card">
+        <p class="label-text" style="text-align:center;margin-bottom:14px;">Partager cette page par QR code</p>
+        <button class="btn-outline btn-block" onclick="showQR()">📱 Afficher le QR Code</button>
+    </div>
+</div>
+
+<!-- QR Modal -->
+<div id="qr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:200;display:none;align-items:center;justify-content:center;flex-direction:column;gap:20px;" onclick="closeQR()">
+    <div style="background:#fff;padding:28px;border-radius:8px;text-align:center;" onclick="event.stopPropagation()">
+        <p style="font-family:Arial,sans-serif;font-size:13px;color:#444;margin-bottom:14px;" id="qr-label"></p>
+        <div id="qr-canvas"></div>
+        <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;">
+            <button onclick="printQR()" style="background:#111318;color:#c9a84c;border:none;padding:8px 18px;border-radius:4px;font-size:13px;cursor:pointer;font-weight:bold;">Imprimer</button>
+            <button onclick="closeQR()" style="background:#eee;color:#333;border:none;padding:8px 18px;border-radius:4px;font-size:13px;cursor:pointer;">Fermer</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -178,6 +195,42 @@ async function startUpload() {
     updateFileCount();
     document.getElementById('upload-btn').disabled = false;
 }
+
+// QR Code
+function showQR() {
+    const modal = document.getElementById('qr-modal');
+    const canvas = document.getElementById('qr-canvas');
+    canvas.innerHTML = '';
+    document.getElementById('qr-label').textContent = `Lien d'envoi de photos — ${name}`;
+    modal.style.display = 'flex';
+    new QRCode(canvas, {
+        text: window.location.href,
+        width: 240,
+        height: 240,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+    });
+}
+
+function closeQR() {
+    document.getElementById('qr-modal').style.display = 'none';
+}
+
+function printQR() {
+    const canvas = document.getElementById('qr-canvas');
+    const img = canvas.querySelector('img') || canvas.querySelector('canvas');
+    const src = img.tagName === 'CANVAS' ? img.toDataURL() : img.src;
+    const win = window.open('', '_blank');
+    win.document.write(`<!DOCTYPE html><html><head><title>QR Code — ${name}</title>
+        <style>body{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:Arial,sans-serif;}
+        img{width:300px;height:300px;}p{margin-top:16px;font-size:14px;color:#333;text-align:center;}</style></head>
+        <body><img src="${src}"><p>${name}<br><small>${window.location.href}</small></p></body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+}
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </body>
 </html>
