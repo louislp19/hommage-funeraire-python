@@ -48,9 +48,7 @@ document.getElementById('page-sub').textContent = `Partagez vos photos en souven
 document.title = `Envoyer des photos - ${name}`;
 
 const slideshowUrl = `/slideshow.html?event=${encodeURIComponent(event)}&name=${encodeURIComponent(name)}`;
-const backupUrl = `/backup.html?event=${encodeURIComponent(event)}&name=${encodeURIComponent(name)}`;
 document.getElementById('slideshow-link').href = slideshowUrl;
-document.getElementById('backup-link').href = backupUrl;
 
 // File input handling
 const fileInput = document.getElementById('file-input');
