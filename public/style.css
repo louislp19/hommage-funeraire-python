@@ -304,6 +304,61 @@ button:disabled {
 
 .thumb:hover .thumb-dl { opacity: 1; }
 
+/* Portrait (upload page) */
+#portrait-section {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.portrait-frame {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin: 0 auto 16px;
+    border: 3px solid rgba(201, 168, 76, 0.5);
+    box-shadow: 0 0 30px rgba(201, 168, 76, 0.15);
+}
+
+.portrait-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Portrait picker (index page) */
+.portrait-pick {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 2px dashed rgba(201, 168, 76, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-bottom: 16px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+}
+
+.portrait-pick:hover { border-color: #c9a84c; }
+
+.portrait-pick img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#portrait-placeholder {
+    font-size: 0.75rem;
+    color: #666;
+    text-align: center;
+    padding: 8px;
+    font-family: Arial, sans-serif;
+    line-height: 1.4;
+}
+
 /* Mobile */
 @media (max-width: 500px) {
     h1 { font-size: 1.5rem; }

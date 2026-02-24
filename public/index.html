@@ -15,7 +15,16 @@
         <h2>Créer un hommage</h2>
         <label for="defunt-name">Nom du défunt</label>
         <input type="text" id="defunt-name" placeholder="ex: Jean Tremblay" autocomplete="off">
-        <button onclick="genererLiens()">Générer les liens</button>
+
+        <label for="portrait-input" style="margin-top:14px;">Photo du défunt (optionnel)</label>
+        <div class="portrait-pick" id="portrait-pick" onclick="document.getElementById('portrait-input').click()">
+            <img id="portrait-preview" src="" alt="" style="display:none">
+            <span id="portrait-placeholder">Cliquez pour choisir une photo</span>
+        </div>
+        <input type="file" id="portrait-input" accept="image/*" style="display:none">
+
+        <button id="generate-btn" onclick="genererLiens()">Générer les liens</button>
+        <p id="generate-status" class="progress-text" style="margin-top:10px;display:none"></p>
     </div>
 
     <div class="card" id="links-card" style="display:none">
@@ -53,14 +62,13 @@ let uploadUrl = '';
 let slideshowUrl = '';
 let backupUrl = '';
 
-function genererLiens() {
+async function genererLiens() {
     const name = document.getElementById('defunt-name').value.trim();
     if (!name) {
         document.getElementById('defunt-name').focus();
         return;
     }
 
-    // Convert name to URL-safe slug (remove accents, lowercase, replace spaces with hyphens)
     const event = name
         .toLowerCase()
         .normalize('NFD')
@@ -69,8 +77,34 @@ function genererLiens() {
         .replace(/^-|-$/g, '')
         .slice(0, 50);
 
+    const btn = document.getElementById('generate-btn');
+    const statusEl = document.getElementById('generate-status');
+    btn.disabled = true;
+
+    // Upload portrait if one was selected
+    let portraitUrl = '';
+    const portraitFile = document.getElementById('portrait-input').files[0];
+    if (portraitFile) {
+        statusEl.textContent = 'Envoi de la photo...';
+        statusEl.style.display = 'block';
+        try {
+            const formData = new FormData();
+            formData.append('event', event);
+            formData.append('photo', portraitFile);
+            const res = await fetch('/api/portrait', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) portraitUrl = data.url;
+        } catch (e) {
+            console.error('Portrait upload error:', e);
+        }
+        statusEl.style.display = 'none';
+    }
+
+    btn.disabled = false;
+
     const base = window.location.origin;
-    uploadUrl = `${base}/upload.html?event=${event}&name=${encodeURIComponent(name)}`;
+    const portraitParam = portraitUrl ? `&portrait=${encodeURIComponent(portraitUrl)}` : '';
+    uploadUrl = `${base}/upload.html?event=${event}&name=${encodeURIComponent(name)}${portraitParam}`;
     slideshowUrl = `${base}/slideshow.html?event=${event}&name=${encodeURIComponent(name)}`;
     backupUrl = `${base}/backup.html?event=${event}&name=${encodeURIComponent(name)}`;
 
@@ -90,6 +124,20 @@ function copyLink(type) {
         setTimeout(() => confirm.style.display = 'none', 2000);
     });
 }
+
+// Portrait preview
+document.getElementById('portrait-input').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = document.getElementById('portrait-preview');
+        img.src = e.target.result;
+        img.style.display = 'block';
+        document.getElementById('portrait-placeholder').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+});
 
 // Allow pressing Enter in the input field
 document.getElementById('defunt-name').addEventListener('keydown', e => {
