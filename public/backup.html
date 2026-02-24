@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backup Photos</title>
+    <link rel="stylesheet" href="/style.css">
+    <!-- JSZip for creating ZIP file in the browser -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+<div class="container">
+    <h1 id="page-title">Backup Photos</h1>
+    <p class="subtitle" id="page-sub">Téléchargez toutes les photos de cet hommage</p>
+
+    <div class="card">
+        <p id="photo-count">Chargement...</p>
+        <button id="zip-btn" onclick="downloadZip()" style="display:none">
+            ⬇ Télécharger toutes les photos (.zip)
+        </button>
+        <div id="zip-progress" style="display:none">
+            <div class="progress-bar-wrap">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <p id="progress-text" class="progress-text"></p>
+        </div>
+    </div>
+
+    <div id="gallery" class="gallery"></div>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const event = params.get('event') || 'default';
+const name = params.get('name') || 'Mémorial';
+
+document.getElementById('page-title').textContent = `Backup — ${name}`;
+document.getElementById('page-sub').textContent = `Téléchargez toutes les photos de l'hommage de ${name}`;
+document.title = `Backup — ${name}`;
+
+let imageUrls = [];
+
+async function loadImages() {
+    try {
+        const res = await fetch(`/api/images?event=${encodeURIComponent(event)}`);
+        imageUrls = await res.json();
+
+        if (!Array.isArray(imageUrls) || imageUrls.length === 0) {
+            document.getElementById('photo-count').textContent = 'Aucune photo disponible.';
+            return;
+        }
+
+        document.getElementById('photo-count').textContent = `${imageUrls.length} photo(s) disponible(s)`;
+        document.getElementById('zip-btn').style.display = 'inline-block';
+
+        // Render thumbnails with individual download links
+        const gallery = document.getElementById('gallery');
+        imageUrls.forEach((url, i) => {
+            const div = document.createElement('div');
+            div.className = 'thumb';
+            div.innerHTML = `
+                <img src="${url}" alt="Photo ${i + 1}" loading="lazy">
+                <a href="${url}" download="photo-${String(i + 1).padStart(3, '0')}.jpg" class="thumb-dl" title="Télécharger">⬇</a>
+            `;
+            gallery.appendChild(div);
+        });
+
+    } catch (e) {
+        document.getElementById('photo-count').textContent = 'Erreur de chargement.';
+        console.error(e);
+    }
+}
+
+async function downloadZip() {
+    if (imageUrls.length === 0) return;
+
+    document.getElementById('zip-btn').disabled = true;
+    document.getElementById('zip-progress').style.display = 'block';
+
+    const zip = new JSZip();
+    const folderName = name.replace(/[^a-zA-Z0-9]/g, '_') || 'memorial';
+    const folder = zip.folder(folderName);
+
+    let count = 0;
+    for (const url of imageUrls) {
+        try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const ext = blob.type.includes('png') ? 'png' :
+                        blob.type.includes('gif') ? 'gif' :
+                        blob.type.includes('webp') ? 'webp' : 'jpg';
+            folder.file(`photo-${String(++count).padStart(3, '0')}.${ext}`, blob);
+
+            const pct = Math.round((count / imageUrls.length) * 90);
+            document.getElementById('progress-bar').style.width = pct + '%';
+            document.getElementById('progress-text').textContent =
+                `Préparation ${count} / ${imageUrls.length}...`;
+        } catch (e) {
+            console.error('Erreur image:', url, e);
+        }
+    }
+
+    document.getElementById('progress-text').textContent = 'Création du fichier ZIP...';
+    document.getElementById('progress-bar').style.width = '95%';
+
+    const content = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+
+    document.getElementById('progress-bar').style.width = '100%';
+    document.getElementById('progress-text').textContent = `✓ Prêt — ${count} photos`;
+
+    // Trigger download
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = `hommage-${event}.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    document.getElementById('zip-btn').disabled = false;
+}
+
+loadImages();
+</script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hommage Funéraire</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Hommage Funéraire</h1>
+    <p class="subtitle">Créez une page mémorial pour partager des photos en souvenir d'un être cher</p>
+
+    <div class="card">
+        <h2>Créer un hommage</h2>
+        <label for="defunt-name">Nom du défunt</label>
+        <input type="text" id="defunt-name" placeholder="ex: Jean Tremblay" autocomplete="off">
+        <button onclick="createEvent()">Générer les liens</button>
+    </div>
+
+    <div class="card" id="links-card" style="display:none">
+        <h2>Liens générés</h2>
+
+        <p class="label-text">Lien à partager avec les proches pour envoyer des photos :</p>
+        <div class="link-box" id="upload-link-text"></div>
+        <button class="btn-copy" onclick="copyLink('upload')">Copier ce lien</button>
+
+        <hr class="divider">
+
+        <p class="label-text">Lien pour le slideshow (à projeter pendant l'événement) :</p>
+        <div class="link-box" id="slideshow-link-text"></div>
+        <button class="btn-copy" onclick="copyLink('slideshow')">Copier ce lien</button>
+
+        <hr class="divider">
+
+        <div class="action-links">
+            <a id="open-upload" class="btn-gold" target="_blank">Ouvrir la page d'upload</a>
+            <a id="open-slideshow" class="btn-outline" target="_blank">Ouvrir le slideshow</a>
+        </div>
+    </div>
+
+    <div id="copy-confirm" class="copy-confirm" style="display:none">Lien copié !</div>
+</div>
+
+<script>
+let uploadUrl = '';
+let slideshowUrl = '';
+
+function createEvent() {
+    const name = document.getElementById('defunt-name').value.trim();
+    if (!name) {
+        document.getElementById('defunt-name').focus();
+        return;
+    }
+
+    // Convert name to URL-safe slug (remove accents, lowercase, replace spaces with hyphens)
+    const event = name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 50);
+
+    const base = window.location.origin;
+    uploadUrl = `${base}/upload.html?event=${event}&name=${encodeURIComponent(name)}`;
+    slideshowUrl = `${base}/slideshow.html?event=${event}&name=${encodeURIComponent(name)}`;
+
+    document.getElementById('upload-link-text').textContent = uploadUrl;
+    document.getElementById('slideshow-link-text').textContent = slideshowUrl;
+    document.getElementById('open-upload').href = uploadUrl;
+    document.getElementById('open-slideshow').href = slideshowUrl;
+    document.getElementById('links-card').style.display = 'block';
+}
+
+function copyLink(type) {
+    const text = type === 'upload' ? uploadUrl : slideshowUrl;
+    navigator.clipboard.writeText(text).then(() => {
+        const confirm = document.getElementById('copy-confirm');
+        confirm.style.display = 'block';
+        setTimeout(() => confirm.style.display = 'none', 2000);
+    });
+}
+
+// Allow pressing Enter in the input field
+document.getElementById('defunt-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') createEvent();
+});
+</script>
+</body>
+</html>

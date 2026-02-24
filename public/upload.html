@@ -1,38 +1,172 @@
 <!DOCTYPE html>
-<html>
-<head><title>Upload Mémorial</title>
-<style>body{font-family:Arial;padding:50px;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);color:white;height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;}
-input,button{ margin:10px; padding:10px; font-size:16px; }
-#status{font-size:20px; margin:20px; min-height:50px;}
-</style></head>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Envoyer des photos</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
 <body>
-<h1>📸 Upload Photos Mémorial</h1>
-<input type="file" id="files" multiple accept="image/*">
-<button onclick="upload()">Créer & Voir Slideshow</button>
-<div id="status">Sélectionne photos → Créer</div>
+<div class="container">
+    <h1 id="page-title">Hommage Funéraire</h1>
+    <p class="subtitle" id="page-sub">Partagez vos photos en souvenir</p>
+
+    <div class="card">
+        <label class="file-drop" for="file-input">
+            <span class="file-icon">📷</span>
+            <span class="file-text">Cliquez ici pour choisir vos photos</span>
+            <span class="file-hint">ou glissez-déposez les photos ici</span>
+        </label>
+        <input type="file" id="file-input" multiple accept="image/*" style="display:none">
+
+        <p id="file-count" class="file-count-text">Aucune photo sélectionnée</p>
+
+        <button id="upload-btn" onclick="startUpload()">Envoyer les photos</button>
+
+        <div id="progress-area" style="display:none">
+            <div class="progress-bar-wrap">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <p id="progress-text" class="progress-text">Préparation...</p>
+        </div>
+
+        <div id="status"></div>
+    </div>
+
+    <div class="card" id="links-card" style="display:none">
+        <a id="slideshow-link" class="btn-gold btn-block">▶ Voir le Slideshow</a>
+        <a id="backup-link" class="btn-outline btn-block">⬇ Télécharger toutes les photos</a>
+    </div>
+</div>
 
 <script>
-async function upload() {
-    const files = document.getElementById('files').files;
-    const status = document.getElementById('status');
-    if(files.length === 0) return status.innerHTML = '❌ Choisis photos';
-    
-    const formData = new FormData();
-    Array.from(files).forEach(file => formData.append('file', file));
-    
-    status.innerHTML = '⏳ Upload...';
-    try {
-        const res = await fetch('/api/upload', {method:'POST', body: formData});
-        const data = await res.json();
-        
-        if(data.success) {
-            status.innerHTML = `✅ ${data.new_count} ajoutée(s)<br>Total: ${data.total_count} photos<br><a href="/slideshow.html" style="color:#4ade80;font-size:24px;">▶️ Lancer Slideshow Fullscreen</a>`;
-        } else {
-            status.innerHTML = '❌ ' + (data.error || 'Erreur inconnue');
+const params = new URLSearchParams(window.location.search);
+const event = params.get('event') || 'default';
+const name = params.get('name') || 'Mémorial';
+
+document.getElementById('page-title').textContent = name;
+document.getElementById('page-sub').textContent = `Partagez vos photos en souvenir de ${name}`;
+document.title = `Envoyer des photos - ${name}`;
+
+const slideshowUrl = `/slideshow.html?event=${encodeURIComponent(event)}&name=${encodeURIComponent(name)}`;
+const backupUrl = `/backup.html?event=${encodeURIComponent(event)}&name=${encodeURIComponent(name)}`;
+document.getElementById('slideshow-link').href = slideshowUrl;
+document.getElementById('backup-link').href = backupUrl;
+
+// File input handling
+const fileInput = document.getElementById('file-input');
+const fileDrop = document.querySelector('.file-drop');
+
+fileDrop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', updateFileCount);
+
+// Drag and drop
+fileDrop.addEventListener('dragover', e => { e.preventDefault(); fileDrop.classList.add('drag-over'); });
+fileDrop.addEventListener('dragleave', () => fileDrop.classList.remove('drag-over'));
+fileDrop.addEventListener('drop', e => {
+    e.preventDefault();
+    fileDrop.classList.remove('drag-over');
+    fileInput.files = e.dataTransfer.files;
+    updateFileCount();
+});
+
+function updateFileCount() {
+    const count = fileInput.files.length;
+    document.getElementById('file-count').textContent =
+        count === 0 ? 'Aucune photo sélectionnée' :
+        count === 1 ? '1 photo sélectionnée' :
+        `${count} photos sélectionnées`;
+}
+
+// Compress an image using Canvas (keeps images under ~600KB to respect Vercel's 4.5MB limit)
+function compressImage(file) {
+    return new Promise(resolve => {
+        // Skip non-compressible types (HEIC, GIF, etc.)
+        if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+            resolve(file);
+            return;
         }
-    } catch(e) {
-        status.innerHTML = '❌ Erreur réseau';
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            const MAX = 1920;
+            let { width, height } = img;
+            if (width > MAX || height > MAX) {
+                if (width >= height) { height = Math.round(height * MAX / width); width = MAX; }
+                else { width = Math.round(width * MAX / height); height = MAX; }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            canvas.toBlob(
+                blob => resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })),
+                'image/jpeg', 0.85
+            );
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+        img.src = url;
+    });
+}
+
+async function startUpload() {
+    const files = Array.from(fileInput.files);
+    const status = document.getElementById('status');
+
+    if (files.length === 0) {
+        status.innerHTML = '<p class="error">Veuillez choisir au moins une photo.</p>';
+        return;
     }
+
+    document.getElementById('upload-btn').disabled = true;
+    document.getElementById('progress-area').style.display = 'block';
+    status.innerHTML = '';
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < files.length; i++) {
+        const percent = Math.round((i / files.length) * 100);
+        document.getElementById('progress-bar').style.width = percent + '%';
+        document.getElementById('progress-text').textContent =
+            `Photo ${i + 1} de ${files.length} en cours d'envoi...`;
+
+        try {
+            const compressed = await compressImage(files[i]);
+            const formData = new FormData();
+            formData.append('event', event);
+            formData.append('files', compressed);
+
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (data.success) {
+                successCount++;
+            } else {
+                errorCount++;
+                console.error('Erreur upload:', data.error);
+            }
+        } catch (e) {
+            errorCount++;
+            console.error('Erreur réseau:', e);
+        }
+    }
+
+    // Done
+    document.getElementById('progress-bar').style.width = '100%';
+    document.getElementById('progress-text').textContent = 'Terminé !';
+
+    if (successCount > 0) {
+        status.innerHTML = `<p class="success">✓ ${successCount} photo(s) ajoutée(s) avec succès${errorCount > 0 ? ` (${errorCount} erreur(s))` : ''}</p>`;
+        document.getElementById('links-card').style.display = 'block';
+    } else {
+        status.innerHTML = `<p class="error">Échec de l'envoi. Vérifiez votre connexion et réessayez.</p>`;
+    }
+
+    fileInput.value = '';
+    updateFileCount();
+    document.getElementById('upload-btn').disabled = false;
 }
 </script>
 </body>

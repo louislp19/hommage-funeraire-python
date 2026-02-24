@@ -1,82 +1,94 @@
 import os
 import json
-from http.server import BaseHTTPRequestHandler
-from cgi import FieldStorage
-import vercel_blob
+import re
 import uuid
 import hashlib
 import time
+from http.server import BaseHTTPRequestHandler
+from cgi import FieldStorage
+import vercel_blob
+
+
+def sanitize_event(event):
+    # Allow only letters, numbers, hyphens and underscores (max 50 chars)
+    return re.sub(r'[^a-zA-Z0-9\-_]', '', event)[:50]
+
 
 class handler(BaseHTTPRequestHandler):
+
     def do_POST(self):
         try:
-            form = FieldStorage(fp=self.rfile, headers=self.headers, environ={'REQUEST_METHOD':'POST'})
-            
-            list_key = "GLOBAL_MEMORIAL_IMAGES"
-            
-            # Load URLs
-            try:
-                existing_data = vercel_blob.get(list_key)
-                urls = json.loads(existing_data)
-            except:
-                urls = []
-            
-            new_count = 0
-            
-            # Multi-files
-            for key in form.keys():
-                file_item = form[key]
-                if file_item.filename:
-                    # Nom 100% unique : uuid + hash + time
-                    file_bytes = file_item.file.read()
-                    content_hash = hashlib.md5(file_bytes).hexdigest()[:8]
-                    pathname = f"memorial/{uuid.uuid4().hex}-{content_hash}-{int(time.time())}.{file_item.filename.rsplit('.', 1)[-1] if '.' in file_item.filename else 'jpg'}"
-                    
-                    # PUT avec allowOverwrite TRUE (boolean !)
-                    blob = vercel_blob.put(
-                        pathname,
-                        file_bytes,
-                        {
-                            "access": "public",
-                            "allowOverwrite": True,  # BOOLEAN true → KILLS 400 error [page:1]
-                            "addRandomSuffix": True,  # DOUBLE safe
-                            "contentType": file_item.type or "image/jpeg"
-                        }
-                    )
-                    if blob.get('url') not in urls:
-                        urls.append(blob['url'])
-                        new_count += 1
-            
-            # Save LIST avec access public explicite
-            vercel_blob.put(
-                list_key,
-                json.dumps(urls).encode('utf-8'),
-                {
-                    "access": "public"  # FIX slideshow fetch !
-                }
-            )
-            
+            content_length = int(self.headers.get('Content-Length', 0))
+            environ = {
+                'REQUEST_METHOD': 'POST',
+                'CONTENT_TYPE': self.headers.get('Content-Type', ''),
+                'CONTENT_LENGTH': str(content_length)
+            }
+            form = FieldStorage(fp=self.rfile, headers=self.headers, environ=environ)
+
+            event = sanitize_event(form.getvalue('event', ''))
+            if not event:
+                event = 'default'
+
+            prefix = f"memorial/{event}/"
+            uploaded_urls = []
+
+            # form.getlist handles multiple files with the same field name
+            items = form.getlist('files')
+            for item in items:
+                if not hasattr(item, 'filename') or not item.filename:
+                    continue
+
+                file_bytes = item.file.read()
+                if not file_bytes:
+                    continue
+
+                # Validate extension
+                ext = 'jpg'
+                if '.' in item.filename:
+                    ext = item.filename.rsplit('.', 1)[-1].lower()
+                if ext not in ('jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'):
+                    ext = 'jpg'
+
+                content_hash = hashlib.md5(file_bytes).hexdigest()[:8]
+                pathname = f"{prefix}{uuid.uuid4().hex}-{content_hash}.{ext}"
+
+                blob = vercel_blob.put(
+                    pathname,
+                    file_bytes,
+                    {
+                        "access": "public",
+                        "allowOverwrite": True,
+                        "addRandomSuffix": False,
+                        "contentType": item.type or "image/jpeg"
+                    }
+                )
+                url = blob.get('url') or blob.get('downloadUrl', '')
+                if url:
+                    uploaded_urls.append(url)
+
             response = {
                 "success": True,
-                "new_count": new_count,
-                "total_count": len(urls),
-                "last_url": urls[-1] if urls else None,
-                "debug_pathname": pathname
+                "event": event,
+                "new_count": len(uploaded_urls),
+                "urls": uploaded_urls
             }
-            
+
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            self.wfile.write(json.dumps(response).encode())
-            
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+
         except Exception as e:
             self.send_response(500)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"error": str(e)}).encode())
+            self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode('utf-8'))
 
-def main():
-    handler().do_POST()
-
-if __name__ == "__main__":
-    main()
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
