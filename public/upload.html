@@ -59,7 +59,8 @@ if (portrait) {
     document.getElementById('portrait-section').style.display = 'block';
 }
 
-const slideshowUrl = `/slideshow.html?event=${encodeURIComponent(event)}&name=${encodeURIComponent(name)}`;
+const duration = params.get('duration') || '5';
+const slideshowUrl = `/slideshow.html?event=${encodeURIComponent(event)}&name=${encodeURIComponent(name)}&duration=${duration}`;
 document.getElementById('slideshow-link').href = slideshowUrl;
 
 // File input handling
