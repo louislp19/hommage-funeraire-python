@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Hommages</title>
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        .event-card {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .event-portrait {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(201, 168, 76, 0.4);
+            flex-shrink: 0;
+        }
+        .event-portrait-placeholder {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05);
+            border: 2px dashed rgba(201, 168, 76, 0.2);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        .event-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .event-name {
+            font-size: 1.15rem;
+            color: #c9a84c;
+            margin-bottom: 4px;
+            letter-spacing: 1px;
+        }
+        .event-meta {
+            font-size: 0.8rem;
+            color: #666;
+            font-family: Arial, sans-serif;
+            margin-bottom: 12px;
+        }
+        .event-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .btn-sm {
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 3px;
+            text-decoration: none;
+            font-family: Arial, sans-serif;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            border: none;
+            font-weight: bold;
+        }
+        .btn-sm-gold {
+            background: #c9a84c;
+            color: #111318;
+        }
+        .btn-sm-gold:hover { background: #dbbf5e; }
+        .btn-sm-outline {
+            background: transparent;
+            color: #c9a84c;
+            border: 1px solid rgba(201, 168, 76, 0.4);
+        }
+        .btn-sm-outline:hover { border-color: #c9a84c; }
+        .btn-sm-ghost {
+            background: rgba(201, 168, 76, 0.1);
+            color: #888;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .btn-sm-ghost:hover { color: #c9a84c; }
+        .duration-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .duration-row label {
+            font-size: 0.8rem;
+            color: #666;
+            margin: 0;
+            text-transform: none;
+            letter-spacing: 0;
+            white-space: nowrap;
+        }
+        .duration-row select {
+            width: auto;
+            padding: 6px 10px;
+            font-size: 13px;
+            margin: 0;
+        }
+        #loading {
+            text-align: center;
+            color: #666;
+            padding: 40px 0;
+            font-family: Arial, sans-serif;
+        }
+        .empty-state {
+            text-align: center;
+            color: #555;
+            padding: 40px 0;
+            font-family: Arial, sans-serif;
+        }
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .back-link {
+            font-size: 0.85rem;
+            color: #666;
+            text-decoration: none;
+            font-family: Arial, sans-serif;
+        }
+        .back-link:hover { color: #c9a84c; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="admin-header">
+        <h1 style="margin-bottom:0">Hommages</h1>
+        <a href="/" class="back-link">+ Créer un hommage</a>
+    </div>
+    <p class="subtitle">Tous les mémoriaux enregistrés</p>
+
+    <div id="loading">Chargement...</div>
+    <div id="list"></div>
+</div>
+
+<div id="copy-confirm" class="copy-confirm" style="display:none">Lien copié !</div>
+
+<script>
+function slugToName(slug) {
+    return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        const el = document.getElementById('copy-confirm');
+        el.style.display = 'block';
+        setTimeout(() => el.style.display = 'none', 2000);
+    });
+}
+
+function buildCard(ev) {
+    const slug = ev.slug;
+    const name = slugToName(slug);
+    const base = window.location.origin;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    // Portrait
+    let portraitHtml = ev.portrait
+        ? `<img class="event-portrait" src="${ev.portrait}" alt="${name}">`
+        : `<div class="event-portrait-placeholder">✦</div>`;
+
+    // Duration selector id
+    const durId = `dur-${slug}`;
+
+    card.innerHTML = `
+        <div class="event-card">
+            ${portraitHtml}
+            <div class="event-info">
+                <div class="event-name">${name}</div>
+                <div class="event-meta">${ev.count} photo${ev.count !== 1 ? 's' : ''} · ${formatDate(ev.latest)}</div>
+                <div class="duration-row">
+                    <label for="${durId}">Durée des slides :</label>
+                    <select id="${durId}">
+                        <option value="3">3 s</option>
+                        <option value="5" selected>5 s</option>
+                        <option value="7">7 s</option>
+                        <option value="10">10 s</option>
+                        <option value="15">15 s</option>
+                        <option value="20">20 s</option>
+                        <option value="30">30 s</option>
+                    </select>
+                </div>
+                <div class="event-links">
+                    <a class="btn-sm btn-sm-gold" href="${base}/upload.html?event=${slug}&name=${encodeURIComponent(name)}" target="_blank">Upload</a>
+                    <a class="btn-sm btn-sm-outline slideshow-link" data-slug="${slug}" data-name="${encodeURIComponent(name)}" data-dur="${durId}" href="#" target="_blank">▶ Slideshow</a>
+                    <a class="btn-sm btn-sm-ghost" href="${base}/backup.html?event=${slug}&name=${encodeURIComponent(name)}" target="_blank">Backup</a>
+                    <button class="btn-sm btn-sm-ghost copy-upload-btn" data-slug="${slug}" data-name="${encodeURIComponent(name)}">Copier upload</button>
+                    <button class="btn-sm btn-sm-ghost copy-slideshow-btn" data-slug="${slug}" data-name="${encodeURIComponent(name)}" data-dur="${durId}">Copier slideshow</button>
+                </div>
+            </div>
+        </div>`;
+
+    // Update slideshow link when duration changes
+    const durSelect = card.querySelector(`#${durId}`);
+    const slideshowAnchor = card.querySelector('.slideshow-link');
+
+    function updateSlideshowHref() {
+        const dur = durSelect.value;
+        slideshowAnchor.href = `${base}/slideshow.html?event=${slug}&name=${encodeURIComponent(name)}&duration=${dur}`;
+    }
+    updateSlideshowHref();
+    durSelect.addEventListener('change', updateSlideshowHref);
+
+    // Copy buttons
+    card.querySelector('.copy-upload-btn').addEventListener('click', function() {
+        const dur = durSelect.value;
+        copyText(`${base}/upload.html?event=${slug}&name=${encodeURIComponent(name)}&duration=${dur}`);
+    });
+    card.querySelector('.copy-slideshow-btn').addEventListener('click', function() {
+        const dur = durSelect.value;
+        copyText(`${base}/slideshow.html?event=${slug}&name=${encodeURIComponent(name)}&duration=${dur}`);
+    });
+
+    return card;
+}
+
+async function load() {
+    try {
+        const res = await fetch('/api/events');
+        const data = await res.json();
+        document.getElementById('loading').style.display = 'none';
+        const list = document.getElementById('list');
+
+        if (!Array.isArray(data) || data.length === 0) {
+            list.innerHTML = '<div class="empty-state">Aucun mémorial trouvé.</div>';
+            return;
+        }
+
+        data.forEach(ev => list.appendChild(buildCard(ev)));
+    } catch (e) {
+        document.getElementById('loading').textContent = 'Erreur de chargement.';
+    }
+}
+
+load();
+</script>
+</body>
+</html>
