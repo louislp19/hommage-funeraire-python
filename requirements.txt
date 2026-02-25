@@ -1,1 +1,1 @@
-vercel-blob
+supabase

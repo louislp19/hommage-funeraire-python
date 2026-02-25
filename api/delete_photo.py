@@ -1,8 +1,14 @@
+import os
 import json
 import re
-import urllib.request
 from http.server import BaseHTTPRequestHandler
-import vercel_blob
+from supabase import create_client
+
+BUCKET = 'hommage'
+
+
+def _sb():
+    return create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
 
 
 def sanitize_event(event):
@@ -23,12 +29,10 @@ class handler(BaseHTTPRequestHandler):
                 self._respond(400, {'success': False, 'error': 'Paramètres manquants'})
                 return
 
-            # Verify the URL belongs to this event before checking PIN
             if f'memorial/{event}/' not in photo_url:
                 self._respond(403, {'success': False, 'error': 'URL non autorisée'})
                 return
 
-            # Verify PIN
             config = self._load_config(event)
             if config is None:
                 self._respond(404, {'success': False, 'error': 'Mémorial non trouvé'})
@@ -37,7 +41,10 @@ class handler(BaseHTTPRequestHandler):
                 self._respond(403, {'success': False, 'error': 'PIN incorrect'})
                 return
 
-            vercel_blob.delete([photo_url])
+            # Extract storage path from public URL
+            path = photo_url.split(f'/storage/v1/object/public/{BUCKET}/')[1]
+            sb = _sb()
+            sb.storage.from_(BUCKET).remove([path])
             self._respond(200, {'success': True})
 
         except Exception as e:
@@ -45,15 +52,9 @@ class handler(BaseHTTPRequestHandler):
 
     def _load_config(self, event):
         try:
-            result = vercel_blob.list({'prefix': f'config/{event}.json', 'limit': 1})
-            blobs = result.get('blobs', [])
-            if not blobs:
-                return None
-            url = blobs[0].get('url', '')
-            if not url:
-                return None
-            with urllib.request.urlopen(url) as resp:
-                return json.loads(resp.read().decode('utf-8'))
+            sb = _sb()
+            data = sb.storage.from_(BUCKET).download(f'config/{event}.json')
+            return json.loads(data)
         except Exception:
             return None
 

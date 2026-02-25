@@ -1,8 +1,14 @@
+import os
 import json
-import urllib.request
 from datetime import date
 from http.server import BaseHTTPRequestHandler
-import vercel_blob
+from supabase import create_client
+
+BUCKET = 'hommage'
+
+
+def _sb():
+    return create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
 
 
 class handler(BaseHTTPRequestHandler):
@@ -10,31 +16,22 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Called daily by Vercel Cron. Deletes memorials past their expiry date."""
         try:
-            today = date.today().isoformat()  # YYYY-MM-DD
+            today = date.today().isoformat()
             deleted = []
+            sb = _sb()
 
             # List all config files
-            config_blobs = []
-            cursor = None
-            while True:
-                kwargs = {"prefix": "config/", "limit": 1000}
-                if cursor:
-                    kwargs["cursor"] = cursor
-                result = vercel_blob.list(kwargs)
-                for blob in result.get('blobs', []):
-                    parts = blob.get('pathname', '').split('/')
-                    if len(parts) == 2:
-                        slug = parts[1].rsplit('.', 1)[0]
-                        config_blobs.append({'slug': slug, 'url': blob.get('url', '')})
-                cursor = result.get('cursor')
-                if not result.get('hasMore') or not cursor:
-                    break
+            config_items = sb.storage.from_(BUCKET).list('config', {'limit': 1000})
+            config_slugs = [
+                f['name'].rsplit('.', 1)[0]
+                for f in config_items
+                if f.get('id') is not None and f['name'].endswith('.json')
+            ]
 
-            for item in config_blobs:
-                slug = item['slug']
+            for slug in config_slugs:
                 try:
-                    with urllib.request.urlopen(item['url'], timeout=5) as resp:
-                        config = json.loads(resp.read().decode('utf-8'))
+                    data = sb.storage.from_(BUCKET).download(f'config/{slug}.json')
+                    config = json.loads(data)
                 except Exception:
                     continue
 
@@ -42,26 +39,31 @@ class handler(BaseHTTPRequestHandler):
                 if not expiry or expiry > today:
                     continue
 
-                # Collect all blobs to delete for this event
-                urls_to_delete = [item['url']]  # config file itself
+                paths_to_delete = [f'config/{slug}.json']
 
-                for prefix in [f'memorial/{slug}/', f'portrait/{slug}']:
-                    cursor2 = None
-                    while True:
-                        kw = {"prefix": prefix, "limit": 1000}
-                        if cursor2:
-                            kw["cursor"] = cursor2
-                        r = vercel_blob.list(kw)
-                        for b in r.get('blobs', []):
-                            u = b.get('url', '')
-                            if u:
-                                urls_to_delete.append(u)
-                        cursor2 = r.get('cursor')
-                        if not r.get('hasMore') or not cursor2:
-                            break
+                # Collect memorial photos
+                folder = f'memorial/{slug}'
+                offset = 0
+                limit = 1000
+                while True:
+                    items = sb.storage.from_(BUCKET).list(folder, {'limit': limit, 'offset': offset})
+                    if not items:
+                        break
+                    for f in items:
+                        if f.get('id') is not None:
+                            paths_to_delete.append(f"{folder}/{f['name']}")
+                    if len(items) < limit:
+                        break
+                    offset += limit
 
-                if urls_to_delete:
-                    vercel_blob.delete(urls_to_delete)
+                # Collect portrait
+                portrait_items = sb.storage.from_(BUCKET).list('portrait', {'limit': 100})
+                for f in portrait_items:
+                    if f.get('id') is not None and f['name'].startswith(f'{slug}.'):
+                        paths_to_delete.append(f"portrait/{f['name']}")
+
+                if paths_to_delete:
+                    sb.storage.from_(BUCKET).remove(paths_to_delete)
                     deleted.append(slug)
 
             self.send_response(200)

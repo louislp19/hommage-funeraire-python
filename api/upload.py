@@ -3,14 +3,18 @@ import json
 import re
 import uuid
 import hashlib
-import time
 from http.server import BaseHTTPRequestHandler
 from cgi import FieldStorage
-import vercel_blob
+from supabase import create_client
+
+BUCKET = 'hommage'
+
+
+def _sb():
+    return create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
 
 
 def sanitize_event(event):
-    # Allow only letters, numbers, hyphens and underscores (max 50 chars)
     return re.sub(r'[^a-zA-Z0-9\-_]', '', event)[:50]
 
 
@@ -30,11 +34,10 @@ class handler(BaseHTTPRequestHandler):
             if not event:
                 event = 'default'
 
-            prefix = f"memorial/{event}/"
+            sb = _sb()
+            prefix = f"memorial/{event}"
             uploaded_urls = []
 
-            # Collect all file items from all form keys
-            # (handles both 'files' and any other file field names)
             items = []
             for key in form.keys():
                 field = form[key]
@@ -51,7 +54,6 @@ class handler(BaseHTTPRequestHandler):
                 if not file_bytes:
                     continue
 
-                # Validate extension
                 ext = 'jpg'
                 if '.' in item.filename:
                     ext = item.filename.rsplit('.', 1)[-1].lower()
@@ -59,19 +61,14 @@ class handler(BaseHTTPRequestHandler):
                     ext = 'jpg'
 
                 content_hash = hashlib.md5(file_bytes).hexdigest()[:8]
-                pathname = f"{prefix}{uuid.uuid4().hex}-{content_hash}.{ext}"
+                path = f"{prefix}/{uuid.uuid4().hex}-{content_hash}.{ext}"
 
-                blob = vercel_blob.put(
-                    pathname,
+                sb.storage.from_(BUCKET).upload(
+                    path,
                     file_bytes,
-                    {
-                        "access": "public",
-                        "allowOverwrite": True,
-                        "addRandomSuffix": False,
-                        "contentType": item.type or "image/jpeg"
-                    }
+                    file_options={"content-type": item.type or "image/jpeg", "upsert": "true"}
                 )
-                url = blob.get('url') or blob.get('downloadUrl', '')
+                url = sb.storage.from_(BUCKET).get_public_url(path)
                 if url:
                     uploaded_urls.append(url)
 

@@ -1,9 +1,15 @@
+import os
 import json
 import re
-import urllib.request
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-import vercel_blob
+from supabase import create_client
+
+BUCKET = 'hommage'
+
+
+def _sb():
+    return create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
 
 
 def sanitize_event(event):
@@ -40,7 +46,6 @@ class handler(BaseHTTPRequestHandler):
             action = body.get('action', '')
 
             if action == 'set_expiry':
-                # Admin action — no PIN required
                 if not event:
                     self._respond(400, {'success': False, 'error': 'Paramètre event requis'})
                     return
@@ -83,25 +88,18 @@ class handler(BaseHTTPRequestHandler):
 
     def _load_config(self, event):
         try:
-            result = vercel_blob.list({'prefix': f'config/{event}.json', 'limit': 1})
-            blobs = result.get('blobs', [])
-            if not blobs:
-                return None
-            url = blobs[0].get('url', '')
-            if not url:
-                return None
-            with urllib.request.urlopen(url) as resp:
-                return json.loads(resp.read().decode('utf-8'))
+            sb = _sb()
+            data = sb.storage.from_(BUCKET).download(f'config/{event}.json')
+            return json.loads(data)
         except Exception:
             return None
 
     def _save_config(self, event, config):
-        data = json.dumps(config).encode('utf-8')
-        vercel_blob.put(
+        sb = _sb()
+        sb.storage.from_(BUCKET).upload(
             f'config/{event}.json',
-            data,
-            {'access': 'public', 'allowOverwrite': True, 'addRandomSuffix': False,
-             'contentType': 'application/json'}
+            json.dumps(config).encode('utf-8'),
+            file_options={'content-type': 'application/json', 'upsert': 'true'}
         )
 
     def _respond(self, status, data):

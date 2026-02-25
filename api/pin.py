@@ -1,9 +1,15 @@
+import os
 import json
 import re
-import urllib.request
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-import vercel_blob
+from supabase import create_client
+
+BUCKET = 'hommage'
+
+
+def _sb():
+    return create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
 
 
 def sanitize_event(event):
@@ -21,17 +27,12 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            result = vercel_blob.list({'prefix': f'config/{event}.json', 'limit': 1})
-            blobs = result.get('blobs', [])
-            if not blobs:
-                self._respond(404, {'success': False, 'pin': ''})
-                return
-            url = blobs[0].get('url', '')
-            with urllib.request.urlopen(url) as resp:
-                config = json.loads(resp.read().decode('utf-8'))
+            sb = _sb()
+            data = sb.storage.from_(BUCKET).download(f'config/{event}.json')
+            config = json.loads(data)
             self._respond(200, {'success': True, 'pin': config.get('pin', '')})
-        except Exception as e:
-            self._respond(500, {'success': False, 'error': str(e)})
+        except Exception:
+            self._respond(404, {'success': False, 'pin': ''})
 
     def _respond(self, status, data):
         self.send_response(status)

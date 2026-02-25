@@ -1,8 +1,15 @@
+import os
 import json
 import re
 from http.server import BaseHTTPRequestHandler
 from cgi import FieldStorage
-import vercel_blob
+from supabase import create_client
+
+BUCKET = 'hommage'
+
+
+def _sb():
+    return create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
 
 
 def sanitize_event(event):
@@ -25,7 +32,6 @@ class handler(BaseHTTPRequestHandler):
             if not event:
                 raise Exception("Paramètre event requis")
 
-            # Find the portrait file among all form fields
             portrait = None
             for key in form.keys():
                 field = form[key]
@@ -46,21 +52,15 @@ class handler(BaseHTTPRequestHandler):
             if ext not in ('jpg', 'jpeg', 'png', 'webp'):
                 ext = 'jpg'
 
-            # Stored at a fixed path so it can be overwritten
-            pathname = f"portrait/{event}.{ext}"
+            path = f"portrait/{event}.{ext}"
 
-            blob = vercel_blob.put(
-                pathname,
+            sb = _sb()
+            sb.storage.from_(BUCKET).upload(
+                path,
                 file_bytes,
-                {
-                    "access": "public",
-                    "allowOverwrite": True,
-                    "addRandomSuffix": False,
-                    "contentType": portrait.type or "image/jpeg"
-                }
+                file_options={"content-type": portrait.type or "image/jpeg", "upsert": "true"}
             )
-
-            url = blob.get('url') or blob.get('downloadUrl', '')
+            url = sb.storage.from_(BUCKET).get_public_url(path)
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')

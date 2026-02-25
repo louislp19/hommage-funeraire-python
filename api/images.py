@@ -1,8 +1,15 @@
+import os
 import json
 import re
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-import vercel_blob
+from supabase import create_client
+
+BUCKET = 'hommage'
+
+
+def _sb():
+    return create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
 
 
 def sanitize_event(event):
@@ -24,27 +31,30 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": "Parametre event requis"}).encode('utf-8'))
                 return
 
-            prefix = f"memorial/{event}/"
-            all_blobs = []
-            cursor = None
+            sb = _sb()
+            folder = f"memorial/{event}"
 
-            # Fetch all pages
+            all_files = []
+            offset = 0
+            limit = 1000
             while True:
-                options = {"prefix": prefix, "limit": 1000}
-                if cursor:
-                    options["cursor"] = cursor
-
-                result = vercel_blob.list(options)
-                blobs = result.get('blobs', [])
-                all_blobs.extend(blobs)
-
-                if not result.get('hasMore'):
+                items = sb.storage.from_(BUCKET).list(folder, {
+                    'limit': limit,
+                    'offset': offset,
+                    'sortBy': {'column': 'created_at', 'order': 'asc'}
+                })
+                if not items:
                     break
-                cursor = result.get('cursor')
+                files = [f for f in items if f.get('id') is not None]
+                all_files.extend(files)
+                if len(items) < limit:
+                    break
+                offset += limit
 
-            # Sort by upload date (oldest first) so slideshow shows in order
-            all_blobs.sort(key=lambda b: b.get('uploadedAt', ''))
-            urls = [b['url'] for b in all_blobs if b.get('url')]
+            urls = [
+                sb.storage.from_(BUCKET).get_public_url(f"{folder}/{f['name']}")
+                for f in all_files
+            ]
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
